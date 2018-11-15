@@ -9,5 +9,5 @@ Includes many utilities for better support of nebulae
 
 ---
 ## Installation
-type following command in terminal
+Type following command in terminal
 > $ pip install nebulae
