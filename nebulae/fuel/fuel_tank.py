@@ -94,7 +94,7 @@ class FuelTank(object):
             else:
                 raise data_aug_err
 
-        if self.param['is_seq']:
+        if self.param['is_seq']: # if this call is for sequential data augmentation
             for t,ta in enumerate(self.param['temporal_aug'].split(',')):
                 if not ta:
                     continue
@@ -162,15 +162,17 @@ class FuelTank(object):
         Fetch next batch
         '''
         while 1:
-            self.epoch = -abs(self.epoch)
             self.curr_idx += self.param['batch_size']
             curr_batch = {}
             for atr in self.attributes:
                 curr_batch[atr] = []
             # start a new epoch
-            import time
-            start = time.time()
+            low_power = False
+            # import time
+            # start = time.time()
             if self.curr_idx > self.nsample:
+                low_power = True
+                self.epoch = -self.epoch
                 # if the samples left are not enough to feed a mini batch, let's say n samples.
                 # the current batch should be the last n samples in addition to the first (bs-n) samples
                 for idx in self.order[self.curr_idx - self.param['batch_size']:self.nsample]:
@@ -186,8 +188,6 @@ class FuelTank(object):
                         else:
                             curr_batch[atr] += [self.datafile[atr][idx]]
 
-                # epoch counter turns positive when an epoch ends
-                self.epoch = abs(self.epoch) + 1
                 if self.param['if_shuffle']:
                     # reshuffle data to read
                     self._shuffleData()
@@ -204,5 +204,8 @@ class FuelTank(object):
 
             for atr in self.attributes:
                 curr_batch[atr] = np.array(curr_batch[atr]).astype(self.dtypes[atr])
-            print('%.3fs'%(time.time()-start))
+            # print('%.3fs'%(time.time()-start))
             yield curr_batch
+            if low_power:
+                # epoch counter turns positive when an epoch ends
+                self.epoch = abs(self.epoch) + 1

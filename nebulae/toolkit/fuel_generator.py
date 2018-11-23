@@ -33,18 +33,17 @@ from .decorator import Timer
 
 class FuelGenerator(object):
 
-    def __init__(self, config=None, file_dir=None, file_list=None, dst_path=None, dtype=None,
+    def __init__(self, config=None, file_dir=None, file_list=None, dtype=None,
                  height=224, width=224, channel=1, encode='jpeg'):
         self.param = {}
         self.data = {}
-        self.modifiable_keys = ['file_dir', 'file_list', 'dst_path', 'dtype',
+        self.modifiable_keys = ['file_dir', 'file_list', 'dtype',
                                 'height', 'width', 'channel', 'encode']
         self.valid_dtypes = ['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32', 'int64',
                              'float16', 'float32', 'float64', 'str']
         if config:
             self.param['file_dir'] = config.get('file_dir')
             self.param['file_list'] = config.get('file_list')
-            self.param['dst_path'] = config.get('dst_path')
             self.param['dtype'] = [np.dtype(dt) for dt in config.get('dtype')]
             self.param['height'] = config.get('height', height)
             self.param['width'] = config.get('width', width)
@@ -53,7 +52,6 @@ class FuelGenerator(object):
         else:
             self.param['file_dir'] = file_dir
             self.param['file_list'] = file_list
-            self.param['dst_path'] = dst_path
             self.param['dtype'] = dtype
             self.param['height'] = height
             self.param['width'] = width
@@ -63,8 +61,6 @@ class FuelGenerator(object):
         # check if key arguments are valid
         if self.param['file_list'].split('.')[-1] != 'csv':
             raise Exception('file list should be a csv file.')
-        if self.param['dst_path'].split('.')[-1] != 'hdf5':
-            raise Exception('hdf5 file is recommended for storing compressed data.')
         for dt in self.param['dtype']:
             if dt not in self.valid_dtypes:
                 raise Exception('%s is not a valid data type.' % dt)
@@ -87,7 +83,7 @@ class FuelGenerator(object):
         return np_bytes
 
     @Timer
-    def _file2Byte(self):
+    def _file2Byte(self, dst_path):
         with open(os.path.join(self.param['file_dir'], self.param['file_list']), 'r') as filelist:
             content = csv.reader(filelist)
             for l, line in enumerate(content):
@@ -103,7 +99,7 @@ class FuelGenerator(object):
                             self.data[key].append(self._preProcess(os.path.join(self.param['file_dir'], line[k])))
                         else:
                             self.data[key].append(line[k])
-        hdf5 = h5py.File(self.param['dst_path'], 'w')
+        hdf5 = h5py.File(dst_path, 'w')
         for k, key in enumerate(self.info_keys):
             if k == 0: # dealing with raw data
                 dt = h5py.special_dtype(vlen=self.param['dtype'][k])
@@ -112,24 +108,18 @@ class FuelGenerator(object):
                 hdf5[key] = np.array(self.data[key]).astype(self.param['dtype'][k])
         hdf5.close()
 
-    def generateFuel(self):
-        duration = self._file2Byte()
+    def generateFuel(self, dst_path):
+        if dst_path.split('.')[-1] != 'hdf5':
+            raise Exception('hdf5 file is recommended for storing compressed data.')
+        duration = self._file2Byte(dst_path)
         print('+' + (54 * '-') + '+')
         print('| \033[1;35m%-18s\033[0m has been generated within \033[1;35m%6.3fs\033[0m |'
-              % (os.path.basename(self.param['dst_path']), duration))
+              % (os.path.basename(dst_path), duration))
         print('+' + (54 * '-') + '+')
 
-    def propertyEdit(self, config=None, **kwargs):
+    def editProperty(self, config=None, **kwargs):
         if config:
             kwargs = config
-            # self.param['file_dir'] = config.get('file_dir', self.param['file_dir'])
-            # self.param['file_list'] = config.get('file_list', self.param['file_list'])
-            # self.param['dst_path'] = config.get('dst_path', self.param['dst_path'])
-            # self.param['dtype'] = config.get('dtype', self.param['dtype'])
-            # self.param['height'] = config.get('height', self.param['height'])
-            # self.param['width'] = config.get('width', self.param['width'])
-            # self.param['channel'] = config.get('channel', self.param['channel'])
-            # self.param['encode'] = config.get('encode', self.param['encode'])
         for key in kwargs:
             if key not in self.modifiable_keys:
                 print('%s is not a modifiable parameter or has not been defined.' % key)

@@ -88,7 +88,7 @@ class FuelDepot(object):
     def stepsPerEpoch(self, name):
         return ceil(self.dataset[name].nsample/self.dataset[name].param['batch_size'])
 
-    def propertyEdit(self, dataname, config=None, **kwargs):
+    def editProperty(self, dataname, config=None, **kwargs):
         flag_rename = False
         if config:
             kwargs = config
