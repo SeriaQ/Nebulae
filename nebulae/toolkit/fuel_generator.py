@@ -40,7 +40,7 @@ class FuelGenerator(object):
         self.modifiable_keys = ['file_dir', 'file_list', 'dtype',
                                 'height', 'width', 'channel', 'encode']
         self.valid_dtypes = ['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32', 'int64',
-                             'float16', 'float32', 'float64', 'str']
+                             'float16', 'float32', 'float64', 'str', 'bool']
         if config:
             self.param['file_dir'] = config.get('file_dir')
             self.param['file_list'] = config.get('file_list')
@@ -112,10 +112,10 @@ class FuelGenerator(object):
         if dst_path.split('.')[-1] != 'hdf5':
             raise Exception('hdf5 file is recommended for storing compressed data.')
         duration = self._file2Byte(dst_path)
-        print('+' + (54 * '-') + '+')
-        print('| \033[1;35m%-18s\033[0m has been generated within \033[1;35m%6.3fs\033[0m |'
+        print('+' + (59 * '-') + '+')
+        print('| \033[1;35m%-23s\033[0m has been generated within \033[1;35m%6.3fs\033[0m |'
               % (os.path.basename(dst_path), duration))
-        print('+' + (54 * '-') + '+')
+        print('+' + (59 * '-') + '+')
 
     def editProperty(self, config=None, **kwargs):
         if config:

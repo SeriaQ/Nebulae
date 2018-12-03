@@ -36,16 +36,16 @@ class FuelTank(object):
         self.param = param
         self.epoch = 0
         duration = self._loadData()
-        print('+' + (59 * '-') + '+')
-        print('| \033[1;35m%-17s\033[0m dataset has been mounted within \033[1;35m%6.3fs\033[0m |'
+        print('+' + (61 * '-') + '+')
+        print('| \033[1;35m%-17s\033[0m fuel tank has been mounted within \033[1;35m%6.3fs\033[0m |'
               % (param['name'], duration))
-        print('+' + (59 * '-') + '+')
+        print('+' + (61 * '-') + '+')
 
     def __del__(self):
         self.datafile.close()
-        print('+' + (48 * '-') + '+')
-        print('| \033[1;35m%-17s\033[0m dataset is no longer mounted |' % self.param['name'])
-        print('+' + (48 * '-') + '+')
+        print('+' + (50 * '-') + '+')
+        print('| \033[1;35m%-17s\033[0m fuel tank is no longer mounted |' % self.param['name'])
+        print('+' + (50 * '-') + '+')
 
     def _shuffleData(self):
         '''
@@ -65,8 +65,11 @@ class FuelTank(object):
             data_aug_err = Exception('%s spatial augmentation is unsupported.' % da_type)
             if da_type == 'flip':
                 aug_img = np.zeros(img.shape)
-                for c in range(self.channel):
-                    aug_img[:, :, c] = np.fliplr(img[:, :, c])
+                if self.param['channel'] == 1:
+                    aug_img = np.fliplr(img)
+                else:
+                    for c in range(self.param['channel']):
+                        aug_img[:, :, c] = np.fliplr(img[:, :, c])
                 return aug_img
             elif da_type == 'brightness':
                 aug_img = theta + img  # pixels range between [theta, 1+theta]
@@ -124,18 +127,23 @@ class FuelTank(object):
             self.attributes = self.datafile.keys()
             self.dtypes = {}
             for atr in self.attributes:
-                self.dtypes[atr] = self.datafile[atr].dtype
+                if atr == self.param['data_key'] and self.param['is_compressed']:
+                    self.dtypes[atr] = np.dtype('float32')
+                else:
+                    self.dtypes[atr] = self.datafile[atr].dtype
 
         elif format == 'hdf5':
             self.datafile = h5py.File(self.param['data_path'], 'r')
             self.attributes = self.datafile.keys()
             self.dtypes = {}
             for atr in self.attributes:
-                self.dtypes[atr] = self.datafile[atr].dtype
+                if atr == self.param['data_key'] and self.param['is_compressed']:
+                    self.dtypes[atr] = np.dtype('float32')
+                else:
+                    self.dtypes[atr] = self.datafile[atr].dtype
 
         # get number of samples and channels
-        self.nsample = self.datafile[self.param['key_data']].shape[0]
-        self.channel = self.datafile[self.param['key_data']].shape[-1]
+        self.nsample = self.datafile[self.param['data_key']].shape[0]
 
         # --------------------------- initialize and shuffle --------------------------- #
         order = [i for i in range(self.nsample )]
@@ -145,6 +153,8 @@ class FuelTank(object):
             self._shuffleData()
 
     def _byte2Array(self, data_src):
+        if not self.param['is_compressed']: # no need to recover data from bytes
+            return data_src
         data_bytes = data_src.tobytes()
         data_pil = Image.open(io.BytesIO(data_bytes))
         if self.param['width']>0 and self.param['height']>0:
@@ -155,6 +165,8 @@ class FuelTank(object):
             data_pil = data_pil.resize((self.param['width'], self.param['height']))
         data_np = np.array(data_pil) # pixels range between [0, 255]
         data_np = (data_np/255).astype(np.float32) # pixels range between [0, 1]
+        if self.param['channel'] == 1:
+            data_np = np.expand_dims(data_np, -1)
         return data_np
 
     def _fetchBatches(self):
@@ -177,13 +189,13 @@ class FuelTank(object):
                 # the current batch should be the last n samples in addition to the first (bs-n) samples
                 for idx in self.order[self.curr_idx - self.param['batch_size']:self.nsample]:
                     for atr in self.attributes:
-                        if atr == self.param['key_data']:
+                        if atr == self.param['data_key']:
                             curr_batch[atr] += [self._dataAugmentation(self._byte2Array(self.datafile[atr][idx]))]
                         else:
                             curr_batch[atr] += [self.datafile[atr][idx]]
                 for idx in self.order[0:self.curr_idx - self.nsample]:
                     for atr in self.attributes:
-                        if atr == self.param['key_data']:
+                        if atr == self.param['data_key']:
                             curr_batch[atr] += [self._dataAugmentation(self._byte2Array(self.datafile[atr][idx]))]
                         else:
                             curr_batch[atr] += [self.datafile[atr][idx]]
@@ -197,7 +209,7 @@ class FuelTank(object):
             else:
                 for idx in self.order[self.curr_idx - self.param['batch_size']:self.curr_idx]:
                     for atr in self.attributes:
-                        if atr == self.param['key_data']:
+                        if atr == self.param['data_key']:
                             curr_batch[atr] += [self._dataAugmentation(self._byte2Array(self.datafile[atr][idx]))]
                         else:
                             curr_batch[atr] += [self.datafile[atr][idx]]

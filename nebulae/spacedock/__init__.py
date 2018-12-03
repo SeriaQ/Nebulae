@@ -22,3 +22,5 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
+from .space_craft import SpaceCraft
+from .component import Component
