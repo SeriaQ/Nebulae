@@ -21,13 +21,12 @@ Email: zzqsummerai@yeah.net
 
 '''
 # -*- coding:utf-8 -*-
-
-import nebulae.toolkit.fuel_generator
-import nebulae.fuel.fuel_depot
-import nebulae.fuel.fuel_tank
-import nebulae.spacedock.space_craft
-import nebulae.spacedock.component
-import nebulae.aerolog.layout_sheet
+import nebulae.fuel
+import nebulae.astrobase
+import nebulae.cockpit
+import nebulae.aerolog
+import nebulae.law
+import nebulae.toolkit
 
 name = 'nebulae'
-__all__ = ['fuel', 'spacedock', 'aerolog', 'toolkit']
+__all__ = ['fuel', 'astrobase', 'cockpit', 'aerolog', 'law', 'toolkit']

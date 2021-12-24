@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 3:57 PM
+__init__
+Created by Seria at 20/12/2018 4:54 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -21,16 +22,14 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
+from .engine import Engine
+from .time_machine import TimeMachine
+import os
 
-import time
-
-def Timer(func):
-    def _timerWrapper(*args, **kwargs):
-        t_ = time.time()
-        ret = func(*args, **kwargs)
-        _t = time.time()
-        if not isinstance(ret, tuple):
-            ret = (ret,)
-        return (_t - t_,) + ret
-
-    return _timerWrapper
+core = os.environ.get('NEB_CORE', 'PYTORCH')
+if core.upper() == 'TENSORFLOW':
+    from .multiverse_tf import Multiverse
+elif core.upper() == 'PYTORCH':
+    from .multiverse_pt import Multiverse
+else:
+    raise ValueError('NEBULAE ERROR ⨷ %s is an unsupported core.' % core)

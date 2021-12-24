@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 3:57 PM
+__init__
+Created by Seria at 2021/5/22 11:22 AM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -21,16 +22,3 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-
-import time
-
-def Timer(func):
-    def _timerWrapper(*args, **kwargs):
-        t_ = time.time()
-        ret = func(*args, **kwargs)
-        _t = time.time()
-        if not isinstance(ret, tuple):
-            ret = (ret,)
-        return (_t - t_,) + ret
-
-    return _timerWrapper

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 3:57 PM
+law
+Created by Seria at 02/02/2019 12:50 AM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -21,16 +22,10 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-
-import time
-
-def Timer(func):
-    def _timerWrapper(*args, **kwargs):
-        t_ = time.time()
-        ret = func(*args, **kwargs)
-        _t = time.time()
-        if not isinstance(ret, tuple):
-            ret = (ret,)
-        return (_t - t_,) + ret
-
-    return _timerWrapper
+class Constant(object):
+    CORE = 'PYTORCH'
+    FIELD_SEP = '"'
+    CHAR_SEP = ','
+    FRAME_KEY = '_MAX_FRAMES'
+    VALID_DTYPE = ['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32', 'int64',
+                    'float16', 'float32', 'float64', 'str', 'bool']

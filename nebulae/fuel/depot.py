@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 3:57 PM
+Created by Seria at 02/11/2018 3:38 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -21,16 +21,20 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
+import os
 
-import time
+__all__ = ('Tank', 'Comburant')
 
-def Timer(func):
-    def _timerWrapper(*args, **kwargs):
-        t_ = time.time()
-        ret = func(*args, **kwargs)
-        _t = time.time()
-        if not isinstance(ret, tuple):
-            ret = (ret,)
-        return (_t - t_,) + ret
-
-    return _timerWrapper
+core = os.environ.get('NEB_CORE', 'PYTORCH')
+if core.upper() == 'TENSORFLOW':
+    from .tank_tf import Tank
+    from .comburant_tf import *
+    from . import comburant_tf
+    __all__ += comburant_tf.__all__
+elif core.upper() == 'PYTORCH':
+    from .tank_pt import Tank
+    from .comburant_pt import *
+    from . import comburant_pt
+    __all__ += comburant_pt.__all__
+else:
+    raise ValueError('NEBULAE ERROR ⨷ %s is an unsupported core.' % core)

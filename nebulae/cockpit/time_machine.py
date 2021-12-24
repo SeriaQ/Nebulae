@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''
-engine
-Created by Seria at 23/11/2018 2:36 PM
+time_machine
+Created by Seria at 23/12/2018 8:34 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -23,29 +23,24 @@ Email: zzqsummerai@yeah.net
 '''
 # -*- coding:utf-8 -*-
 import os
-from ..law import Constant
 
-def Engine(config=None, device=None, ngpus=1, least_mem=2048, available_gpus=()):
+def TimeMachine(config=None, ckpt_path=None, save_path=None, max_anchors=-1):
     rank = int(os.environ.get('RANK', -1))
-    ngpus = int(os.environ.get('WORLD_SIZE', ngpus))
     if config is None:
-        param = {'device': device, 'ngpus': ngpus, 'least_mem': least_mem, 'available_gpus': available_gpus,
-                 'rank': rank}
+        param = {'ckpt_path': ckpt_path, 'save_path': save_path, 'max_anchors': max_anchors, 'rank': rank}
     else:
-        config['ngpus'] = config.get('ngpus', ngpus)
-        config['least_mem'] = config.get('least_mem', least_mem)
-        config['available_gpus'] = config.get('available_gpus', available_gpus)
+        config['ckpt_path'] = config.get('ckpt_path', ckpt_path)
+        config['save_path'] = config.get('save_path', save_path)
+        config['max_anchors'] = config.get('max_anchors', max_anchors)
         config['rank'] = config.get('rank', rank)
         param = config
-    if not isinstance(param['ngpus'], int):
-        raise TypeError('NEBULAE ERROR ⨷ number of gpus must be an integer.')
 
     core = os.environ.get('NEB_CORE', 'PYTORCH')
     if core.upper() == 'TENSORFLOW':
-        from .engine_tf import EngineTF
-        return EngineTF(param)
+        from .time_machine_tf import TimeMachineTF
+        return TimeMachineTF(param)
     elif core.upper() == 'PYTORCH':
-        from .engine_pt import EnginePT
-        return EnginePT(param)
+        from .time_machine_pt import TimeMachinePT
+        return TimeMachinePT(param)
     else:
         raise ValueError('NEBULAE ERROR ⨷ %s is an unsupported core.' % core)
