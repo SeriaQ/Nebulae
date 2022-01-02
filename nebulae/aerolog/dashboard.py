@@ -61,7 +61,8 @@ class DashBoard(object):
         self.gauge_epoch = {}
         self.trail_mile = {}
         self.trail_epoch = {}
-        self.is_global = True
+        self.is_global = None
+        self.is_elastic = None
         self.panel = 0
 
     def _getOridinal(self, number):
@@ -93,7 +94,7 @@ class DashBoard(object):
         else:
             raise KeyError('%s is an illegal format option.' % mode)
 
-    def gauge(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, flush=0):
+    def gauge(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, flush=0, is_global=True, is_elastic=False):
         if self.param['rank']>0:
             return
         epoch += 1
@@ -157,8 +158,10 @@ class DashBoard(object):
                 curve_exists = False
             if curve_exists:
                 data = np.array(self.gauge_mile[items[self.panel]])
-                curve = curve2str(data, self.param['divisor'], self.param['span'],
-                                  self.is_global, x_title='step', y_title=items[self.panel] + 10*' ')
+                is_global = is_global if self.is_global is None else self.is_global
+                is_elastic = is_elastic if self.is_elastic is None else self.is_elastic
+                curve = curve2str(data, self.param['divisor'], self.param['span'], is_global, is_elastic,
+                                  x_title='step', y_title=items[self.panel] + 10*' ')
                 print(curve)
                 print(w * ' ', end='\r')
 
@@ -194,7 +197,7 @@ class DashBoard(object):
             return
         assert epoch!=0, 'NEBULAE ERROR ⨷ epoch starts from 1.'
         epoch = epoch-1 if epoch>0 else epoch
-        return self.gauge_epoch[stage + ':' + entry][epoch-1]
+        return self.gauge_epoch[stage + ':' + entry][epoch]
 
     def record(self, entry, stage, value):
         if self.param['rank']>0:

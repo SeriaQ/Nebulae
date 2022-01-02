@@ -90,8 +90,12 @@ class Craft(nn.Module):
                     self.to(gr.device[gr.param['rank']])
             elif gr.param['device'] == 'cpu':
                 self.cpu()
+
+            if gr.param['multi_piston']:
+                return nn.DataParallel(self)
         else:
             raise Exception('NEBULAE ERROR ⨷ %s is not a valid type of gear.' % type(gr))
+        return self
 
     def vars(self):
         return self.parameters()

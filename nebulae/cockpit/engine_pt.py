@@ -39,11 +39,11 @@ class EnginePT(object):
         self.param = param
         # look for available gpu devices
         if self.param['device'].lower() == 'gpu':
-            if len(self.param['available_gpus']) == 0:
+            if len(self.param['avail_gpus']) == 0:
                 gputil = GPUtil()
                 gpus = gputil.available(self.param['ngpus'], self.param['least_mem'])
             else:
-                gpus = self.param['available_gpus']
+                gpus = self.param['avail_gpus']
             if len(gpus) < self.param['ngpus']:
                 raise Exception('NEBULAE ERROR ⨷ no enough available gpu.')
             # convert gpu list to string

@@ -150,7 +150,7 @@ def launch(mv=None):
 
     # --------------------------------- Launcher --------------------------------- #
     net = Net('cnn', 100)
-    net.gear(ng)
+    net = net.gear(ng)
     net, tk_train, tk_dev = mv.sync(net, (tk_train, tk_dev))
     train = Train(net)
     dev = Dev(net)

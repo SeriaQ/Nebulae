@@ -51,7 +51,12 @@ VERTICAL = 11
 
 class Comburant(object):
     def __init__(self, *args, is_encoded=False):
-        self.comburant = Compose(list(args))
+        if isinstance(args[-1], HWC2CHW):
+            ls_args = list(args[:-1])
+            self.cvt_form = args[-1]
+        else:
+            ls_args = list(args)
+        self.comburant = Compose(ls_args)
         self.is_encoded = is_encoded
 
     def __call__(self, imgs):
@@ -69,10 +74,14 @@ class Comburant(object):
             for i in imgs:
                 i = np.array(i)
                 i = i.astype(np.float32) / 255
+                if hasattr(self, 'cvt_form'):
+                    i = self.cvt_form(i)
                 img.append(i)
         else:
             img = np.array(imgs)
             img = img.astype(np.float32) / 255
+            if hasattr(self, 'cvt_form'):
+                img= self.cvt_form(img)
         return img
 
 
@@ -100,7 +109,7 @@ class HWC2CHW(ABC):
     def __init__(self):
         super(HWC2CHW, self).__init__()
 
-    def call(self, img):
+    def __call__(self, img):
         return np.transpose(img, (2, 0, 1))
 
 

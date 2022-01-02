@@ -38,14 +38,14 @@ class EngineTF(object):
         self.param = param
         # look for available gpu devices
         if self.param['device'].lower() == 'gpu':
-            if len(self.param['available_gpus'])==0:
+            if len(self.param['avail_gpus'])==0:
                 gputil = GPUtil()
                 gpus = gputil.available(self.param['ngpus'], self.param['least_mem'])
                 if len(gpus) == 0:
                     raise Exception('NEBULAE ERROR ⨷ no enough available gpu', gpus)
                 # TODO: multi-gpu training is to be supported
             else:
-                gpus = self.param['available_gpus']
+                gpus = self.param['avail_gpus']
             # convert gpu list to string
             str_gpus = ','.join([str(g[0]) for g in gpus])
             # set environment variable

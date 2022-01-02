@@ -35,7 +35,7 @@ from math import ceil
 from time import sleep
 from PIL import Image
 import cv2
-from ..law import Constant
+# from ..law import Constant
 
 
 
@@ -289,7 +289,7 @@ def byte2arr(data_src, as_np=True):
         data_pil = Image.open(io.BytesIO(data_bytes))
         return data_pil
 
-def curve2str(curve, divisor, span, is_global, x_title='x', y_title='y'):
+def curve2str(curve, divisor, span, is_global, is_elastic, x_title='x', y_title='y'):
     assert curve.ndim == 1 and span > 9 # must be a vector
     assert os.get_terminal_size().columns > span + 10 + 5 # ensure that curve is not too long to display
 
@@ -308,12 +308,91 @@ def curve2str(curve, divisor, span, is_global, x_title='x', y_title='y'):
     y_min = curve.min()
     delta = (y_max - y_min) / divisor
     if delta == 0.:
-        grid = [[10*' ' + ' ┃ ', span * ' ', '\n'] for i in range(1, divisor + 1)]
+        grid = [[10 * ' ' + ' ┃ ', span * ' ', '\n'] for i in range(1, divisor + 1)]
         grid.append([10 * ' ' + ' ▲ ', span * ' ', '\n'])
     else:
-        quant = np.round((curve - y_min) / delta).astype(np.int8)
+        if is_elastic:
+            quant = np.clip(np.floor((curve - y_min) / delta).astype(np.int8), 0, divisor-1)
+            hist = np.zeros(divisor)
+            qualified = np.ones(divisor, dtype=np.int8)
+            increment = 1. / quant.size
+            # build histogram for bins along the vertical axis
+            for q in quant:
+                hist[q] += increment
+            ascend = np.argsort(hist)
+            portion = 1. / divisor
+            merged = 0
+            segment = 0
+            contig = 0
+            sum_h = 0
+            # merge rarely plotted areas
+            last = -1 # where the last merged segment ends
+            for k, h in enumerate(hist):
+                sum_h += h
+                if sum_h < portion and k < divisor-1:
+                    contig += 1
+                elif k == divisor-1:
+                    stop = k
+                    if h < portion and contig > 0:
+                        stop += 1
+                    if h >= portion and contig == 1:
+                        contig = 0
+                    qualified[k - contig: stop] *= 0
+                    merged += stop - (k - contig)
+                    if stop - (k - contig) > 0 and (last < 0 or last != k-contig):
+                        segment += 1
+                else:
+                    if contig > 1:
+                        stop = k
+                        if h < portion:
+                            stop += 1
+                        qualified[k-contig : stop] *= 0
+                        merged += stop - (k - contig)
+                        if last < 0 or last != k - contig:
+                            segment += 1
+                        last = stop
+                        contig = 0
+                        sum_h = 0
+                    elif h < portion:
+                        sum_h = h
+                        contig = 1
+                    else:
+                        contig = 0
+                        sum_h = 0
+            # replot curves
+            delimiter = [0]
+            quot = (merged - segment) % (divisor - merged)
+            univ = (merged - segment) // (divisor - merged)
+            qualified *= univ + 1
+            if quot > 0:
+                for a in ascend[-quot:]:
+                    qualified[a] += 1
+            m_ = -1
+            _m = -1
+            quant = np.zeros_like(quant)
+            for k, q in enumerate(qualified):
+                if q == 0:
+                    m_ = k if m_<0 else m_
+                    _m = k
+                else:
+                    if _m>=0:
+                        delimiter.append((_m + 1) * delta)
+                        quant[curve - y_min - delimiter[-2] > 0] = len(delimiter) - 1
+                    for j in range(q):
+                        delimiter.append(k * delta + (j+1) * delta/q)
+                        quant[curve - y_min - delimiter[-2] > 0] = len(delimiter) - 1
+                    m_ = -1
+                    _m = -1
+            if _m >= 0:
+                assert m_ != _m
+                delimiter.append((_m + 1) * delta)
+                quant[curve - y_min - delimiter[-2] > 0] = len(delimiter) - 1
+            delimiter = delimiter[1:]
+        else:
+            quant = np.round((curve - y_min) / delta).astype(np.int8)
+            delimiter = [i * delta for i in range(1, divisor+1)]
 
-        grid = [[f'{y_min + i*delta:>10.3f} ┃ ', span * ' ', '\n'] for i in range(1, divisor + 1)]
+        grid = [[f'{y_min + d:>10.3f} ┃ ', span * ' ', '\n'] for d in delimiter]
         grid.append([10 * ' ' + ' ▲︎ ', span * ' ', '\n'])
         # draw the curve
         for i in range(curve.size-1):
@@ -552,3 +631,6 @@ class GPUtil():
         stat += '\n+' + 67 * '-' + '+'
         self.stat = stat
         os.remove('./temp_gpu_stat.csv')
+
+if __name__=='__main__':
+    print(curve2str(np.array([0.99,0.12,0.107,0.093,0.088,0.066,0.069,0.052,0.07,0.048]), 15, 70, True, True))

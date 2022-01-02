@@ -175,7 +175,7 @@ def launch(mv=None):
     # --------------------------------- Launcher --------------------------------- #
     net = Net(10, 'cnn')
     # net = dock.EMA(Net(10, 'cnn'))
-    net.gear(ng)
+    net = net.gear(ng)
     train = Train(net)
     dev = Dev(net)
 

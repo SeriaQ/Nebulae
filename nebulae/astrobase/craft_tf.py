@@ -92,6 +92,7 @@ class Craft(Model):
             pass
         else:
             raise Exception('NEBULAE ERROR ⨷ %s is not a valid type of gear.' % type(gr))
+        return self
 
     def vars(self):
         return self.trainable_weights
