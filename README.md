@@ -23,7 +23,7 @@ The latest version supports PyTorch1.6 and TensorFlow2.3
 
 It shows fancy progress bars and draw metric curves in real-time.
 
-[![dashboard.gif](https://i.postimg.cc/Px96HZRQ/dashboard.gif)](https://postimg.cc/JD33cyms)
+[![TThIyD.gif](https://s4.ax1x.com/2022/01/02/TThIyD.gif)](https://imgtu.com/i/TThIyD)
 
 **Unified Interface**
 
