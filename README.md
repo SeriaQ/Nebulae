@@ -1,4 +1,6 @@
-# <img src="./data/_md_imgs/nebulae.png" alt="nebulae" style="zoom:10%;" />Nebulae Brochure
+# [![nebulae-icon.png](https://i.postimg.cc/6QwW0LnB/nebulae-icon.png)](https://postimg.cc/yDQC6RLG)
+
+# Nebulae Brochure
 
 **A novel and simple framework based on concurrent mainstream frameworks and other image processing libraries. It is convenient to deploy almost every module independently.**
 
@@ -21,7 +23,7 @@ The latest version supports PyTorch1.6 and TensorFlow2.3
 
 It shows fancy progress bars and draw metric curves in real-time.
 
-![dashboard](./data/_md_imgs/dashboard.gif)
+[![dashboard.gif](https://i.postimg.cc/C1hKFHxc/dashboard.gif)](https://postimg.cc/nsWx2m7m)
 
 **Unified Interface**
 
