@@ -1,4 +1,4 @@
-# [![nebulae-icon.png](https://i.postimg.cc/6QwW0LnB/nebulae-icon.png)](https://postimg.cc/yDQC6RLG)
+# <img src="https://i.postimg.cc/6QwW0LnB/nebulae-icon.png" alt="nebulae-icon.png" style="zoom:25%;" />
 
 # Nebulae Brochure
 
