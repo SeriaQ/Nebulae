@@ -1,4 +1,4 @@
-# <img src="https://i.postimg.cc/6QwW0LnB/nebulae-icon.png" alt="nebulae-icon.png" width="215" height="219" />
+<img src="https://s4.ax1x.com/2022/01/03/THE0u6.png" alt="nebulae-icon.png" width = "215" height = "219" />
 
 # Nebulae Brochure
 
@@ -23,7 +23,7 @@ The latest version supports PyTorch1.6 and TensorFlow2.3
 
 It shows fancy progress bars and draw metric curves in real-time.
 
-[![TThIyD.gif](https://s4.ax1x.com/2022/01/02/TThIyD.gif)](https://imgtu.com/i/TThIyD)
+[![THAIh9.gif](https://s4.ax1x.com/2022/01/03/THAIh9.gif)](https://imgtu.com/i/THAIh9)
 
 **Unified Interface**
 
