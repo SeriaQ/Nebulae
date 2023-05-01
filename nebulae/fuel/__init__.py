@@ -21,9 +21,13 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .generator import Generator
-from ..toolkit.utility import _mergeFuel as merge
-from ..toolkit.utility import _fillFuel as fill
-from ..toolkit.utility import _deductFuel as deduct
+from .tank import *
+from .comburant import *
+from .generator import *
+from . import tank, comburant, generator
 
-__all__ = ('Generator', 'depot', 'merge', 'fill', 'deduct')
+from ..kit.utility import _merge_fuel as merge
+from ..kit.utility import _fill_fuel as fill
+from ..kit.utility import _deduct_fuel as deduct
+
+__all__ = ('merge', 'fill', 'deduct') + comburant.__all__ + generator.__all__ + tank.__all__

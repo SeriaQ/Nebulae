@@ -21,7 +21,6 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-
 from PIL import Image
 import io
 import os
@@ -30,12 +29,24 @@ import h5py
 import numpy as np
 from piexif import remove as rm_exif
 
-from ..toolkit.decorator import Timer
+from ..kit.decorator import Timer
 from ..law import Constant
+
+__all__ = ('Generator', 'NA', 'FAST', 'GOOD', 'OPTIM', 'LOSSLESS')
+
+NA = 0
+FAST = 1
+GOOD = 2
+OPTIM = 3
+LOSSLESS = 4
 
 class Generator(object):
 
     def __init__(self, config=None, file_dir=None, file_list=None, dtype=None, is_seq=False):
+        # >| When quality is Not LOSSLESS, you must prepend 'v' flag to dtype of images.
+        #    because the image is compressed to non-determined length.
+        #    Likewise, you need do the same thing to other data arrays with variable length.
+        #    e.g. 'uint8' -> 'vuint8', 'float32' -> 'vfloat32'
         self.param = {}
         self.modifiable_keys = ['file_dir', 'file_list', 'dtype']
         if config:
@@ -56,22 +67,41 @@ class Generator(object):
             if dt.strip('v') not in Constant.VALID_DTYPE:
                 raise Exception('NEBULAE ERROR ⨷ %s is not a valid data type.' % dt)
 
-    def _compress(self, img_path, height, width, channel, encode, keep_exif):
+    def _compress(self, img_path, height, width, channel, quality, keep_exif):
         ch_err = Exception('NEBULAE ERROR ⨷ images having %d channels are invalid.' % channel)
+        if channel != 1 and channel != 3:
+            raise ch_err
         with io.BytesIO() as buffer:
+            has_cache = False
             if keep_exif:
-                if channel == 1:
-                    image = Image.open(img_path).convert('L')
-                elif channel == 3:
-                    image = Image.open(img_path).convert('RGB')
-                else:
-                    raise ch_err
-                if width>0 and height>0:
-                    image = image.resize((width, height))
-                image.save(buffer, format=encode)
+                image = Image.open(img_path)
             else:
-                rm_exif(img_path, buffer)
+                try:
+                    cache = io.BytesIO()
+                    rm_exif(img_path, cache)
+                    image = Image.open(cache)
+                    has_cache = True
+                except:
+                    image = Image.open(img_path)
+
+            if width>0 and height>0:
+                if quality == FAST:
+                    image = image.resize((width, height), Image.BILINEAR)
+                else:
+                    image = image.resize((width, height), Image.LANCZOS)
+            if quality == FAST:
+                image.save(buffer, format='JPEG', quality=75)
+            elif quality == GOOD:
+                image.save(buffer, format='JPEG', quality=95)
+            elif quality == OPTIM:
+                image.save(buffer, format='PNG', compress_level=1)
+            elif quality == LOSSLESS:
+                image.save(buffer, format='PNG', compress_level=0)
+            else:
+                raise KeyError('NEBULAE ERROR ⨷ quality key is not defined.')
             encoded_bytes = buffer.getvalue()
+            if has_cache:
+                cache.close()
         np_bytes = np.frombuffer(encoded_bytes, dtype=np.uint8)
 
         return np_bytes
@@ -99,12 +129,12 @@ class Generator(object):
         hdf5.close()
 
     @Timer
-    def _file2Byte(self, dst_path, height, width, channel, encode, shards, keep_exif):
+    def _file2Byte(self, dst_path, height, width, channel, quality, nshard, keep_exif):
         data = {}
         print('+' + (80 * '-') + '+')
         nsample = len(open(os.path.join(self.param['file_dir'], self.param['file_list']), 'r').readlines()) - 1
-        patch_size = int(nsample/shards) + 1
-        if shards == 1:
+        patch_size = int(nsample/nshard) + 1
+        if nshard == 1:
             patch = -1
         else:
             patch = 0
@@ -129,18 +159,18 @@ class Generator(object):
                     max_frames = 0
                 else:
                     for k, key in enumerate(info_keys):
-                        if k == 0 and len(encode) > 0: # dealing with raw data
+                        if k == 0 and quality > 0: # dealing with raw data
                             if self.param['is_seq']:
                                 csl = line[k].split(Constant.CHAR_SEP) # comma separated line
                                 max_frames = len(csl) if len(csl) > max_frames else max_frames
                                 temp_data = []
                                 for f in csl:
                                     temp_data.append(self._compress(os.path.join(self.param['file_dir'], f),
-                                                                    height, width, channel, encode, keep_exif))
-                                data[key].append(np.array(temp_data).astype(self.param['dtype'][k].strip('v')))
+                                                                    height, width, channel, quality, keep_exif))
+                                data[key].append(temp_data)
                             else:
                                 data[key].append(self._compress(os.path.join(self.param['file_dir'], line[k]),
-                                                                height, width, channel, encode, keep_exif))
+                                                                height, width, channel, quality, keep_exif))
                         else:
                             csl = line[k].split(Constant.CHAR_SEP) # comma separated line
                             if len(csl) == 1 and not self.param['dtype'][k].startswith('v'):
@@ -158,12 +188,12 @@ class Generator(object):
                         patch += 1
         self._write(dst_path, patch, data, info_keys, max_frames)
 
-    def generate(self, dst_path, height=0, width=0, channel=3, encode='JPEG', shards=1, keep_exif=True):
+    def generate(self, dst_path, height=0, width=0, channel=3, quality=OPTIM, nshard=1, keep_exif=True):
         if not (h5py.is_hdf5(dst_path) or dst_path.split('.')[-1]=='hdf5'):
             raise Exception('NEBULAE ERROR ⨷ hdf5 file is recommended for storing compressed data.')
-        if shards < 1 or (not isinstance(shards, int)):
-            raise ValueError('NEBULAE ERROR ⨷ the number of shards must be an positive integer.')
-        duration = self._file2Byte(dst_path, height, width, channel, encode, shards, keep_exif)[0]
+        if nshard < 1 or (not isinstance(nshard, int)):
+            raise ValueError('NEBULAE ERROR ⨷ the number of nshard must be an positive integer.')
+        duration = self._file2Byte(dst_path, height, width, channel, quality, nshard, keep_exif)[0]
         print('+' + (80 * '-') + '+')
         print('| \033[1;35m%-38s\033[0m has been generated within \033[1;35m%12.2fs\033[0m |'
               % (os.path.basename(dst_path), duration))
@@ -177,3 +207,19 @@ class Generator(object):
                 raise KeyError('NEBULAE ERROR ⨷ %s is not a modifiable parameter or has not been defined.' % key)
             else:
                 self.param[key] = kwargs[key]
+
+
+
+
+if __name__ == '__main__':
+    # create a data generator
+    fg = Generator(file_dir='/Users/Seria/Desktop/nebulae/test/data/lemon4',
+                   file_list='train.csv',
+                   dtype=['vuint8', 'int8'])
+    # generate compressed data file
+    fg.generate(dst_path='/Users/Seria/Desktop/nebulae/test/data/lemon4_train.hdf5',
+                channel=3,
+                height=128,
+                width=128,
+                quality=OPTIM,
+                keep_exif=False)

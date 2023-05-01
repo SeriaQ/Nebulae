@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 2:22 PM
+dcvae
+Created by Seria at 2022/11/8 8:15 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -18,15 +19,22 @@ Email: zzqsummerai@yeah.net
          | |:    \    \ /    /    :| |
          `\--\_    -. ___ .-    _/--/‘
    ===========  \__  NOBUG  __/  ===========
-
+   
 '''
 # -*- coding:utf-8 -*-
-import nebulae.fuel
-import nebulae.astro
-import nebulae.cockpit
-import nebulae.aerolog
-import nebulae.law
-import nebulae.kit
+from ... import dock, Craft
+from .architect import ConvE, DeconvD
 
-name = 'nebulae'
-__all__ = ['fuel', 'astro', 'cockpit', 'aerolog', 'law', 'kit']
+
+class DCVAE(Craft):
+    def __init__(self, in_shape, scope='DCVAE'):
+        super(DCVAE, self).__init__(scope)
+        H, W, C = in_shape
+        latent_dim = H//16 * W//16 * 128
+        self.E = ConvE(in_shape)
+        self.D = DeconvD(in_shape, latent_dim)
+
+    def run(self, x):
+        mu, lv, z = self.E(x)
+        y = self.D(z)
+        return mu, lv, y

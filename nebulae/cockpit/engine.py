@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''
-engine
-Created by Seria at 23/11/2018 2:36 PM
+engine_mx
+Created by Seria at 12/02/2019 3:45 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -23,30 +23,102 @@ Email: zzqsummerai@yeah.net
 '''
 # -*- coding:utf-8 -*-
 import os
-from ..law import Constant
+import torch
+from ..kit.utility import GPUtil
 
-def Engine(config=None, device=None, ngpus=1, least_mem=2048, avail_gpus=(), multi_piston=False):
-    rank = int(os.environ.get('RANK', -1))
-    ngpus = int(os.environ.get('WORLD_SIZE', ngpus))
-    if config is None:
-        param = {'device': device, 'ngpus': ngpus, 'least_mem': least_mem, 'avail_gpus': avail_gpus,
-                 'multi_piston': multi_piston, 'rank': rank}
-    else:
-        config['ngpus'] = config.get('ngpus', ngpus)
-        config['least_mem'] = config.get('least_mem', least_mem)
-        config['avail_gpus'] = config.get('avail_gpus', avail_gpus)
-        config['multi_piston'] = config.get('multi_piston', multi_piston)
-        config['rank'] = config.get('rank', rank)
-        param = config
-    if not isinstance(param['ngpus'], int):
-        raise TypeError('NEBULAE ERROR ⨷ number of gpus must be an integer.')
+CPU = 0
+GPU = 1
 
-    core = os.environ.get('NEB_CORE', 'PYTORCH')
-    if core.upper() == 'TENSORFLOW':
-        from .engine_tf import EngineTF
-        return EngineTF(param)
-    elif core.upper() == 'PYTORCH':
-        from .engine_pt import EnginePT
-        return EnginePT(param)
-    else:
-        raise ValueError('NEBULAE ERROR ⨷ %s is an unsupported core.' % core)
+
+class Engine(object):
+    '''
+    Param:
+    device: CPU or GPU
+    available_gpus
+    gpu_mem_fraction
+    if_conserve
+    least_mem
+    '''
+    def __init__(self, device=GPU, ngpu=1, least_mem=2048, avail_gpus=(), multi_piston=False):
+        self.rank = int(os.environ.get('RANK', -1))
+        self.device = device
+        self.multi_piston = multi_piston
+        # look for available gpu devices
+        if self.device == GPU:
+            if len(avail_gpus) == 0:
+                gputil = GPUtil()
+                gpus = gputil.available(ngpu, least_mem)
+            else:
+                gpus = avail_gpus
+            if len(gpus) < ngpu:
+                raise Exception('NEBULAE ERROR ⨷ no enough available gpu.')
+            # convert gpu list to string
+            str_gpus = ','.join([str(g[0]) for g in gpus])
+            # set environment variable
+            os.environ['CUDA_VISIBLE_DEVICES'] = str_gpus
+            self.chip = [torch.device('cuda:%d'%i) for i in range(ngpu)]
+            # setup multi-gpu environment
+            if self.rank>=0:
+                torch.backends.cudnn.benchmark = True
+                torch.cuda.set_device(self.rank)
+                torch.distributed.init_process_group(backend='nccl', init_method='env://')
+            if self.rank<=0:
+                print('+' + 20 * '-' + '+')
+                print('| Reside in Devices: |')
+                print('+' + 70 * '-' + '+')
+                for g in gpus:
+                    print('| \033[1;36mGPU {:<2d}\033[0m | {:<25s} | {:>5d} MiB free out of {:<5d} MiB |'.format(
+                        g[0], g[1], g[3], g[2]
+                    ))
+                    print('+' + 70 * '-' + '+')
+        elif self.device == CPU:
+            assert self.rank<0
+            print('+' + (24 * '-') + '+')
+            print('| Reside in Devices: \033[1;36mCPU\033[0m |')
+            print('+' + (24 * '-') + '+')
+        else:
+            raise KeyError('NEBULAE ERROR ⨷ given device should be either cpu or gpu.')
+
+        ###################################
+        ##          IT WORKS !           ##
+        ###################################
+        from ..astro import dock
+        dock.coat = self.coat
+        dock.shell = self.shell
+
+    def coat(self, datum, as_const=True, sync=True):
+        if not isinstance(datum, torch.Tensor): # numpy array
+            if isinstance(datum, (int, float)) or datum.shape==(): # scalar
+                datum = torch.tensor(datum)
+            else:
+                datum = torch.from_numpy(datum)
+
+        if as_const:
+            datum.requires_grad = False
+        else:
+            datum.requires_grad = True
+
+        if self.device == GPU:
+            if self.rank<0:
+                return datum.cuda(non_blocking=not sync)
+            else:
+                return datum.to(self.chip[self.rank], non_blocking=not sync)
+        elif self.device == CPU:
+            return datum.cpu()
+        else:
+            raise KeyError('NEBULAE ERROR ⨷ given device should be either cpu or gpu.')
+
+    def shell(self, datum, as_np=True, sync=False):
+        datum = datum.detach()
+        # add a sync point
+        if sync and self.device == GPU:
+            if self.rank < 0:
+                torch.cuda.synchronize()
+            else:
+                torch.cuda.synchronize(self.chip[self.rank])
+        if as_np:
+            if datum.size == 1:
+                datum = datum.cpu().numpy()[0]
+            else:
+                datum = datum.cpu().numpy()
+        return datum

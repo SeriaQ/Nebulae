@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 2:22 PM
+vae
+Created by Seria at 2022/11/3 4:06 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -18,15 +19,21 @@ Email: zzqsummerai@yeah.net
          | |:    \    \ /    /    :| |
          `\--\_    -. ___ .-    _/--/‘
    ===========  \__  NOBUG  __/  ===========
-
+   
 '''
 # -*- coding:utf-8 -*-
-import nebulae.fuel
-import nebulae.astro
-import nebulae.cockpit
-import nebulae.aerolog
-import nebulae.law
-import nebulae.kit
+from ... import dock, Craft
+from .architect import ResE, ResD
 
-name = 'nebulae'
-__all__ = ['fuel', 'astro', 'cockpit', 'aerolog', 'law', 'kit']
+
+
+class ResVAE(Craft):
+    def __init__(self, in_shape, hidden_dim, latent_dim, scope='RESVAE'):
+        super(ResVAE, self).__init__(scope)
+        self.E = ResE(in_shape, hidden_dim, latent_dim)
+        self.D = ResD(in_shape, hidden_dim, latent_dim)
+
+    def run(self, x):
+        mu, lv, z = self.E(x)
+        y = self.D(z)
+        return mu, lv, y

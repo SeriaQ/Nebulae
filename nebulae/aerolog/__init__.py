@@ -22,6 +22,5 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .blueprint import BluePrint
+from .inspector import Inspector
 from .dashboard import DashBoard
-from .control_panel import CtrlPanel

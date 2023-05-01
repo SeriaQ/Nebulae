@@ -22,14 +22,9 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .engine import Engine
+from .engine import Engine, CPU, GPU
 from .time_machine import TimeMachine
-import os
+from .multiverse import Multiverse
 
-core = os.environ.get('NEB_CORE', 'PYTORCH')
-if core.upper() == 'TENSORFLOW':
-    from .multiverse_tf import Multiverse
-elif core.upper() == 'PYTORCH':
-    from .multiverse_pt import Multiverse
-else:
-    raise ValueError('NEBULAE ERROR ⨷ %s is an unsupported core.' % core)
+
+__all__ = ('Engine', 'TimeMachine', 'Multiverse', 'CPU', 'GPU')

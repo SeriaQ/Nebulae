@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-Created by Seria at 02/11/2018 2:22 PM
+__init__
+Created by Seria at 2022/11/3 7:54 PM
 Email: zzqsummerai@yeah.net
 
                     _ooOoo_
@@ -18,15 +19,6 @@ Email: zzqsummerai@yeah.net
          | |:    \    \ /    /    :| |
          `\--\_    -. ___ .-    _/--/‘
    ===========  \__  NOBUG  __/  ===========
-
+   
 '''
 # -*- coding:utf-8 -*-
-import nebulae.fuel
-import nebulae.astro
-import nebulae.cockpit
-import nebulae.aerolog
-import nebulae.law
-import nebulae.kit
-
-name = 'nebulae'
-__all__ = ['fuel', 'astro', 'cockpit', 'aerolog', 'law', 'kit']

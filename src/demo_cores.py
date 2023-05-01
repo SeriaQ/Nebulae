@@ -2,7 +2,6 @@
 '''
 demo_cores
 Created by Seria at 05/11/2018 9:13 PM
-Email: zzqsummerai@yeah.net
 
                     _ooOoo_
                   o888888888o
@@ -29,25 +28,24 @@ with different backend cores. Training and validation are included as well.
 '''
 
 import os
-os.environ['NEB_CORE'] = 'pytorch'
-#os.environ['NEB_CORE'] = 'tensorflow'
-
+# os.environ["OMP_NUM_THREADS"] = "1"
+# os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 import nebulae as neb
-from nebulae.fuel import depot
-from nebulae.astrobase import dock, hangar
+from nebulae import kit, fuel, astro
+from nebulae.astro import dock, hangar
 
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 from time import time
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 
 
 
 def launch(mv=None):
+    kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
-    bp = neb.aerolog.BluePrint(hidden=["is_train"], verbose=True)
-
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             plt.imsave('/Users/Seria/Desktop/nebulae/test/ckpt/retro_%d_%d.jpg'%(epoch, mile), value[:,:,0], cmap='gray')
@@ -56,101 +54,105 @@ def launch(mv=None):
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = neb.cockpit.Engine(device="cpu")
+    ng = neb.cockpit.Engine(device=neb.cockpit.CPU)
     tm = neb.cockpit.TimeMachine(save_path="/Users/Seria/Desktop/nebulae/test/ckpt",
                                  ckpt_path="/Users/Seria/Desktop/nebulae/test/ckpt")
 
     # ---------------------------------- Fuel ------------------------------------ #
-    cb_train = depot.Comburant(depot.Brighten(0.1),
-                               depot.Rotate(10),
-                               depot.Resize((32, 32)),
-                               depot.HWC2CHW(),
-                               is_encoded=True)#depot.HWC2CHW(),
-    cb_dev = depot.Comburant(depot.Resize((32, 32)),
-                             depot.HWC2CHW(),
-                             is_encoded=True)
+    cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(0.1)),
+                              fuel.Random(0.5, fuel.Rotate(10)),
+                              fuel.Resize((32, 32)),
+                              fuel.HWC2CHW(),
+                              is_encoded=True)
+    cb_dev = fuel.Comburant(fuel.Resize((32, 32)),
+                            fuel.HWC2CHW(),
+                            is_encoded=True)
 
-    def fetcher_train(data, idx):
-        ret = {}
-        img = data['image'][idx]
-        ret['image'] = img
-        label = data['label'][idx].astype('int64')
-        ret['label'] = label
-        return ret
+    class TrainSet(fuel.Tank):
+        def load(self, path):
+            self.data = fuel.load_h5(path)
+            return len(self.data['label'])
 
-    def prep_train(data):
-        data['image'] = cb_train(data['image'])*2 - 1
-        # data['image'] = np.transpose(data['image'], (2, 0, 1)).astype('float32')
-        return data
+        # @kit.SPST
+        def fetch(self, idx):
+            ret = {}
+            img = self.data['image'][idx]
+            img = cb_train(img) * 2 - 1
+            ret['image'] = img
+            label = self.data['label'][idx].astype('int64')
+            ret['label'] = label
+            return ret
 
-    def fetcher_dev(data, idx):
-        ret = {}
-        img = data['image'][idx]
-        ret['image'] = img
-        label = data['label'][idx].astype('int64')
-        ret['label'] = label
-        return ret
 
-    def prep_dev(data):
-        data['image'] = cb_dev(data['image'])*2 - 1
-        # data['image'] = np.transpose(data['image'], (2, 0, 1)).astype('float32')
-        return data
+    class DevSet(fuel.Tank):
+        def load(self, path):
+            self.data = fuel.load_h5(path)
+            return len(self.data['label'])
 
-    tk_train = depot.Tank("/Users/Seria/Desktop/nebulae/test/data/cifar10/cifar10_train.hdf5",
-                          {'image': 'vunit8', 'label': 'int64'},
-                          batch_size=128, shuffle=True, fetch_fn=fetcher_train, prep_fn=prep_train)
-    tk_dev = depot.Tank("/Users/Seria/Desktop/nebulae/test/data/cifar10/cifar10_val.hdf5",
-                        {'image': 'vuint8', 'label': 'int64'},
-                        batch_size=32, shuffle=False, fetch_fn=fetcher_dev, prep_fn=prep_dev)
+        # @kit.SPST
+        def fetch(self, idx):
+            ret = {}
+            img = self.data['image'][idx]
+            img = cb_dev(img) * 2 - 1
+            ret['image'] = img
+            label = self.data['label'][idx].astype('int64')
+            ret['label'] = label
+            return ret
+
+    # {'image': 'vuint8', 'label': 'int64'}
+    dp = fuel.Depot(ng)
+    tkt = dp.mount(TrainSet("/Users/Seria/Desktop/nebulae/test/data/cifar10/cifar10_train.hdf5"),
+                        batch_size=128, shuffle=True, nworker=2)
+    tkd = dp.mount(DevSet("/Users/Seria/Desktop/nebulae/test/data/cifar10/cifar10_val.hdf5"),
+                      batch_size=32, shuffle=False)
 
     # -------------------------------- Space Dock --------------------------------- #
-    class Net(dock.Craft):
+    class Net(astro.Craft):
         def __init__(self, nclass, scope):
             super(Net, self).__init__(scope)
-            pad = dock.autoPad((32, 32), (3, 3),  2)
-            self.conv = dock.Conv(3, 8, (3, 3), stride=2, padding=pad, b_init=dock.Void())
-            self.relu = dock.Relu()
-            pad = dock.autoPad((16, 16), (2, 2), 2)
-            self.mpool = dock.MaxPool((2, 2), padding=pad)
-            # self.res = hangar.VGG_16((32, 32, 3), engine=ng)
+            # pad = dock.autopad((3, 3), 2)
+            # self.conv = dock.Conv(3, 8, (3, 3), stride=2, padding=pad, b_init=dock.Void())
+            # self.relu = dock.Relu()
+            # pad = dock.autopad((2, 2), 2)
+            # self.mpool = dock.MaxPool((2, 2), padding=pad)
+            self.res = hangar.Resnet_V2_50((32, 32, 3))
             self.flat = dock.Reshape()
-            self.fc = dock.Dense(512, nclass) #4096
+            self.fc = dock.Dense(2048, nclass) # 512 2048
 
         def run(self, x):
-            bs = x.shape[0]
             self['input'] = x
-            x = self.conv(self['input'])
-            x = self.relu(x)
-            self['feat'] = self.mpool(x)
 
-            # self['feat'] = self.res(self['input'])
-            x = self.flat(self['feat'], (bs, -1))
+            # x = self.conv(self['input'])
+            # x = self.relu(x)
+            # self['feat'] = self.mpool(x)
+
+            self['feat'] = self.res(self['input'])
+            x = self.flat(self['feat'], (-1, 2048))
             self['out'] = self.fc(x)
 
             return self['out'], self['feat']
 
-    class Train(dock.Craft):
+    class Train(astro.Craft):
         def __init__(self, net, scope='TRAIN'):
             super(Train, self).__init__(scope)
             self.net = net
             self.loss = dock.SftmXE(is_one_hot=False)
             self.acc = dock.AccCls(multi_class=False, is_one_hot=False)
-            self.optz = dock.Momentum(self.net, 3e-3, wd=4e-5, lr_decay=dock.StepLR(300, 0.8), warmup=300)
+            self.optz = dock.Adam(self.net, 3e-3, wd=0, lr_decay=dock.StepLR(300, 0.8), warmup=390)
 
-        @neb.toolkit.Timer
-        def run(self, x, z):
-            # if self.net.swapped:
-            #     self.net.swap()
+        @kit.Timer
+        def run(self, x, z, de=False):
+            self.net.off()
             with dock.Rudder() as rud:
                 self.net.gear(rud)
                 y, _ = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
                 self.optz(loss)
-            # self.net.update()
+            self.net.update()
             return loss, acc
 
-    class Dev(dock.Craft):
+    class Dev(astro.Craft):
         def __init__(self, net, scope='DEVELOP'):
             super(Dev, self).__init__(scope)
             self.net = net
@@ -158,45 +160,45 @@ def launch(mv=None):
             self.acc = dock.AccCls(multi_class=False, is_one_hot=False)
             # self.retro = dock.Retroact()
 
-        @neb.toolkit.Timer
+        @kit.Timer
         def run(self, x, z, idx):
-            # if not self.net.swapped:
-            #     self.net.swap()
+            self.net.on()
             with dock.Nozzle() as noz:
                 self.net.gear(noz)
                 y, f = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
-                # print(tf.gradients(y[0, idx], f))
-                # print(noz.gradient(y[0, idx], f))
-                # m = self.retro(f, y[0, idx], noz)[0]
+                # m = self.retro(f, y[0, idx])[0]
             return loss, acc#, m
 
-    # --------------------------------- Launcher --------------------------------- #
-    net = Net(10, 'cnn')
-    # net = dock.EMA(Net(10, 'cnn'))
+    # --------------------------------- Inspect --------------------------------- #
+    # net = Net(10, 'cnn')
+    net = dock.EMA(Net(10, 'cnn'))
     net = net.gear(ng)
     train = Train(net)
     dev = Dev(net)
+    sp = neb.aerolog.Inspector(verbose=True)
+    dummy_x = dock.coat(np.random.rand(1,3,32,32).astype(np.float32))
+    sp.dissect(net, dummy_x)
 
-    # with neb.aerolog.CtrlPanel(db) as cp:
+    # --------------------------------- Launcher --------------------------------- #
+    # tm.to(net, train.optz)
     best = 0
-    for epoch in range(10):
-        mpe = tk_train.MPE
+    for epoch in range(5):
+        mpe = dp.MPE[tkt]
         for mile in range(mpe):
-            batch = tk_train.next()
+            batch = dp.next(tkt)
             img, label = dock.coat(batch['image']), dock.coat(batch['label'])
-            duration, loss, acc = train(img, label)
+            duration, loss, acc = train(img, label, epoch)
             loss = dock.shell(loss)
             acc = dock.shell(acc)
             probe = {'Acc': acc, 'Loss':loss}
-            db.gauge(probe, mile, epoch, mpe, 'TRAIN', interval=10, duration=duration)
+            db.gauge(probe, mile, epoch, mpe, 'TRAIN', interval=2, duration=duration, is_global=True, is_elastic=True)
 
-        mpe = tk_dev.MPE
+        mpe = dp.MPE[tkd]
         for mile in range(mpe):
-            batch = tk_dev.next()
+            batch = dp.next(tkd)
             idx = int(dock.shell(batch['label'])[0])
-            # import pdb; pdb.set_trace()
             img, label = dock.coat(batch['image']), dock.coat(batch['label'])
             duration, loss, acc = dev(img, label, idx)
             loss = dock.shell(loss)
@@ -205,13 +207,11 @@ def launch(mv=None):
             probe = {'Acc': acc, 'Loss': loss}#, 'Img': fm}
             db.gauge(probe, mile, epoch, mpe, 'DEV', interval=2, duration=duration)
         curr = db.read('Acc', 'DEV')
-        if curr is not None and curr > best:
-            tm.drop(net)
+        if curr > best:
+            tm.drop(net, train.optz)
             best = curr
 
-            # cp.refresh()
-        db.log()
-        # cp.actuate()
+    db.log() # history='/Users/Seria/Desktop/nebulae/test/ckpt')
 
 
 
