@@ -1,7 +1,7 @@
  #!/usr/bin/env python
 '''
-demo_cores
-Created by Seria at 05/11/2018 9:13 PM
+demo_dist
+Created by Seria at 05/03/2021 11:01 PM
 
                     _ooOoo_
                   o888888888o
@@ -28,8 +28,7 @@ with different backend cores. Training and validation are included as well.
 '''
 
 import os
-# os.environ["OMP_NUM_THREADS"] = "1"
-# os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+# os.environ["NCCL_P2P_DISABLE"] = "1"
 import nebulae as neb
 from nebulae import kit, fuel, astro
 from nebulae.astro import dock, hangar, fn
@@ -44,6 +43,7 @@ from time import time
 
 
 def launch(mv=None):
+    mv.init()
     kit.destine(121)
     size = 32
     # --------------------------------- Aerolog ---------------------------------- #
@@ -55,7 +55,7 @@ def launch(mv=None):
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=2, multi_piston=True)# gearbox=neb.cockpit.FIXED)
+    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=mv.nworld,)# gearbox=neb.cockpit.FIXED)
     tm = neb.cockpit.TimeMachine(save_path="/root/proj/logs/ckpt",
                                  ckpt_path="/root/proj/logs/ckpt")
 
@@ -103,7 +103,7 @@ def launch(mv=None):
     # {'image': 'vuint8', 'label': 'int64'}
     dp = fuel.Depot(ng)
     tkt = dp.mount(TrainSet("/root/proj/data/cifar10/cifar10_train.hdf5"),
-                        batch_size=128, shuffle=True, nworker=4, prefetch=4)
+                        batch_size=128, shuffle=True, nworker=4)
     tkd = dp.mount(DevSet("/root/proj/data/cifar10/cifar10_val.hdf5"),
                       batch_size=32, shuffle=False)
 
@@ -151,6 +151,7 @@ def launch(mv=None):
                 y, _ = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
+                loss, acc = mv.reduce((loss, acc))
                 self.optz(loss)
             self.net.update()
             return loss, acc
@@ -171,6 +172,7 @@ def launch(mv=None):
                 y, f = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
+                loss, acc = mv.reduce((loss, acc))
                 # m = self.retro(f, y[0, idx])[0]
             return loss, acc#, m
 
@@ -178,6 +180,7 @@ def launch(mv=None):
     # net = Net(10, 'cnn')
     net = dock.EMA(Net(10, 'cnn'), on_device=True)
     net = net.gear(ng)
+    net = mv.sync(net)
     train = Train(net)
     dev = Dev(net)
     sp = neb.aerolog.Inspector(export_path='/root/proj/logs/ckpt/res50', verbose=True, onnx_ver=9)
@@ -216,9 +219,11 @@ def launch(mv=None):
             best = curr
 
     db.log() # history='/root/proj/logs/ckpt')
+    mv.cleanup()
 
 
 
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
-    launch()
+    mv = neb.cockpit.Multiverse(launch, 2)
+    mv()
