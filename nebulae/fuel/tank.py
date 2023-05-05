@@ -104,6 +104,7 @@ class Depot(object):
             self._chip = None
         self._tanks = {}
         self._batch_size = {}
+        self._sampler = {} # only store tanks with shuffling
         self.MPE = {}
 
     def mount(self, tank, batch_size, shuffle=True, in_same_size=True, nworker=-1, prefetch=0, transmit=False):
@@ -139,11 +140,14 @@ class Depot(object):
             from torch.utils.data import distributed as dist
             sampler = dist.DistributedSampler(tank)
             if prefetch < 0:
-                loader = DataLoader(tank, batch_size, shuffle, sampler=sampler, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=tank.collate,
                                           drop_last=in_same_size, num_workers=nworker)
             else:
-                loader = DataLoader(tank, batch_size, shuffle, sampler=sampler, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=tank.collate,
                                     drop_last=in_same_size, num_workers=nworker, prefetch_factor=prefetch)
+            if shuffle:
+                sampler.set_epoch(0)
+                self._sampler[tid] = sampler
         else:
             if prefetch < 0:
                 loader = DataLoader(tank, batch_size, shuffle, collate_fn=tank.collate,
@@ -153,10 +157,10 @@ class Depot(object):
                                     drop_last=in_same_size, num_workers=nworker, prefetch_factor=prefetch)
         # >| prefetch if necessary
         if self._transmit: # no matter how many batches to prefetch on GPU is all the same
-            self._tanks[tid] = [tank, loader, loader.__iter__(), 0, cuda.Stream(device=self._chip)]
+            self._tanks[tid] = [tank, loader, loader.__iter__(), 0, 0, cuda.Stream(device=self._chip)]
             self._prefetch(tid)
         else:
-            self._tanks[tid] = [tank, loader, loader.__iter__(), 0]
+            self._tanks[tid] = [tank, loader, loader.__iter__(), 0, 0]
         return tid
 
     def unmount(self, tid):
@@ -164,10 +168,12 @@ class Depot(object):
         self._tanks.pop(tid)
         self._batch_size.pop(tid)
         self.MPE.pop(tid)
+        if tid in self._sampler.keys():
+            self._sampler.pop(tid)
 
     def _prefetch(self, tid):
         self._fetched_data = self._fetch(tid)
-        with cuda.stream(self._tanks[tid][4]):
+        with cuda.stream(self._tanks[tid][-1]):
             # self._fetched_data = self._fetched_data.cuda(device=self.chip, non_blocking=True)
             if isinstance(self._fetched_data, torch.Tensor):
                 self._fetched_data = self._coater(self._fetched_data, sync=False)
@@ -180,17 +186,20 @@ class Depot(object):
                                 % type(self._fetched_data))
 
     def _fetch(self, tid):
-        loader, iterator, counter = self._tanks[tid][1:4]
-        if counter == self.MPE[tid]:
+        loader, iterator, mile, epoch = self._tanks[tid][1:5]
+        if mile == self.MPE[tid]:
             iterator = loader.__iter__()
             self._tanks[tid][2:4] = iterator, 1
+            self._tanks[tid][4] += 1
+            if tid in self._sampler.keys():
+                self._sampler[tid].set_epoch(epoch + 1)
         else:
             self._tanks[tid][3] += 1
         return iterator.__next__()
 
     def _next(self, tid):
         if self._transmit:
-            cuda.current_stream().wait_stream(self._tanks[tid][4])
+            cuda.current_stream().wait_stream(self._tanks[tid][-1])
             fetched_data = self._fetched_data
             self._prefetch(tid)
             return fetched_data

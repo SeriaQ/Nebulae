@@ -211,7 +211,7 @@ class DashBoard(object):
 
     def read(self, entry, stage, epoch=-1):
         if self.rank>0:
-            return
+            return 0
         assert epoch!=0, 'NEBULAE ERROR ⨷ epoch starts from 1.'
         epoch = epoch-1 if epoch>0 else epoch
         return self.gauge_epoch[stage + ':' + entry][epoch]

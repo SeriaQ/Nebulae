@@ -22,13 +22,12 @@ Email: zzqsummerai@yeah.net
 
 '''
 # -*- coding:utf-8 -*-
+import os
 from math import ceil, sqrt
 from functools import partial
-import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ptflops.pytorch_engine import add_flops_counting_methods
 from ..cockpit.engine import Engine
 from ..cockpit import CPU, GPU
 from ..kit import ver2num
@@ -67,6 +66,12 @@ CONSTANT = 10
 REFLECT = 11
 REPLICATE = 12
 PT_PAD = {CONSTANT: 'constant', REFLECT: 'reflect', REPLICATE: 'replicate'}
+
+DYNAMIC = 20
+STATIC = 21
+FIXED = 22
+
+PT_VER = ver2num(torch.__version__)
 
 
 class DP(nn.DataParallel):
@@ -114,6 +119,13 @@ class Craft(nn.Module):
             else:
                 self.eval()
         elif isinstance(gr, Engine):
+            if gr.gearbox == STATIC:
+                torch.set_float32_matmul_precision('high')
+                self = torch.compile(self, dynamics=True)
+            elif gr.gearbox == FIXED:
+                torch.set_float32_matmul_precision('high')
+                self = torch.compile(self)
+
             if gr.device == GPU:
                 if gr.rank < 0:
                     if gr.multi_piston:
@@ -132,18 +144,6 @@ class Craft(nn.Module):
 
     def weights(self):
         raise Exception('NEBULAE ERROR ⨷ only a few crafts have weights.')
-
-    def _get_flops(self, *dummy_args, **dummy_kwargs):
-        flops_model = add_flops_counting_methods(self)
-        flops_model.eval()
-        flops_model.start_flops_count(ost=sys.stdout, verbose=False, ignore_list=[])
-
-        _ = flops_model(*dummy_args, **dummy_kwargs)
-
-        flops_count, params_count = flops_model.compute_average_flops_cost()
-        flops_model.stop_flops_count()
-
-        return flops_count
 
     def formulate(self, *fns):
         for f in fns:
@@ -605,20 +605,58 @@ class Identity(Craft):
 # ---------------------------------- Manipulation ------------------------------------ #
 
 class EMA(Craft):
-    def __init__(self, hull, decay_fn=lambda x: 0.9, scope='EMA'):
+    def __init__(self, hull, decay_fn=lambda x: 0.9, on_device=False, scope='EMA'):
         super(EMA, self).__init__(scope)
         self.counter = 0
         self.decay_fn = decay_fn
-        self.hull = hull
+        self.on_device = on_device
+        self._rank = int(os.environ.get('RANK', -1))
+        self['hull'] = hull
         self.swapped = False # whether have swapped to its shadow
 
         # initialize shadow as hull itself
         self.shadow = {}
-        hull_params = self.hull.state_dict()
+        hull_params = hull.state_dict()
+        # note that params have not been to GPU even cuda is enabled
         for k, v in hull_params.items():
-            self.shadow[k] = v.clone().detach()
+            self.shadow[k] = v.clone().detach()           
+    
+    def gear(self, gr):
+        if isinstance(gr, torch.device):
+            self.hull.to(gr)
+            self.hull_dev = gr
+        else:
+            self.hull = self.hull.gear(gr)
+            if isinstance(gr, Engine):
+                self.hull_dev = gr.chip[0] # update only take places on main device
+                if self.on_device:
+                    self.shadow_dev = self.hull_dev
+                else:
+                    self.shadow_dev = torch.device('cpu')
+        for k in self.shadow.keys():
+            self.shadow[k] = self.shadow[k].to(self.shadow_dev)
+        return self
 
-    def __getattr__(self, name: str):
+    def vars(self):
+        return self.hull.vars()
+
+    def weights(self):
+        return self.hull.weighs()
+
+    @property
+    def fns(self):
+        return self.hull.__fns
+    
+    def __getattr__(self, name: str): # only be invoked when getattr failed.
+        # EMA is basically a wrapper of model i.e. self.hull,
+        # hence we add the following lines to make sure the
+        # attributes in the model is accessible.
+        hull = self['hull']
+        if name == 'hull':
+            return hull
+        if hasattr(hull, name):
+            return getattr(hull, name)
+
         if '_parameters' in self.__dict__:
             _parameters = self.__dict__['_parameters']
             if name in _parameters:
@@ -631,24 +669,20 @@ class EMA(Craft):
             modules = self.__dict__['_modules']
             if name in modules:
                 return modules[name]
-        # EMA is basically a wrapper of model i.e. self.hull,
-        # hence we add the following lines to make sure the
-        # attributes in the model is accessible.
-        if hasattr(self, 'hull'):
-            if hasattr(self.hull, name):
-                return getattr(self.hull, name)
+        
         raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
 
     def _swap(self):
-        with torch.no_grad():
-            hull_params = self.hull.state_dict()
-            for key in self.shadow.keys():
-                # h' = h+s
-                hull_params[key].add_(self.shadow[key])
-                # s' = h'-s = h
-                self.shadow[key].data.copy_(hull_params[key].cpu().data - self.shadow[key].data)
-                # h' = h'-s' = s
-                hull_params[key].sub_(self.shadow[key])
+        if self._rank <= 0:
+            with torch.no_grad():
+                hull_params = self.hull.state_dict()
+                for key in self.shadow.keys():
+                    # h' = h+s
+                    hull_params[key].add_(self.shadow[key].to(self.hull_dev))
+                    # s' = h'-s = h
+                    self.shadow[key].data.copy_(hull_params[key].to(self.shadow_dev).data - self.shadow[key].data)
+                    # h' = h'-s' = s
+                    hull_params[key].sub_(self.shadow[key].to(self.hull_dev))
         self.swapped = not self.swapped
 
     # >| turn on shadow to evalute
@@ -662,12 +696,14 @@ class EMA(Craft):
             self._swap()
 
     def update(self):
+        if self._rank > 0:
+            return
         self.counter += 1 # count calling times
         decay = self.decay_fn(self.counter)
         with torch.no_grad():
             hull_params = self.hull.state_dict()
             for key in hull_params.keys():
-                self.shadow[key].data.copy_(hull_params[key].data * (1 - decay) + self.shadow[key].data * decay)
+                self.shadow[key].data.copy_(hull_params[key].to(self.shadow_dev).data * (1 - decay) + self.shadow[key].data * decay)
 
     def run(self, *args, **kwargs):
         return self.hull(*args, **kwargs)
@@ -1224,7 +1260,7 @@ class SurPix(Craft):
     def __init__(self, scale: tuple, scope='SURPIX'):
         super(SurPix, self).__init__(scope)
         assert len(scale)==2 and scale[0]==scale[1]
-        if ver2num(torch.__version__) < ver2num('1.8.0'):
+        if PT_VER < ver2num('1.8.0'):
             def rearrange(x):
                 S = scale[0]
                 C, H, W = x.shape[-3:]
@@ -1706,7 +1742,7 @@ class Huber(Craft):
         #   SmoothL1' = l**2 / (2 * delta**2) = Huber / delta**2 , when l < delta
         #   SmoothL1' = l/delta - 1/2         = Huber / delta**2 , otherwise
         super(Huber, self).__init__(scope)
-        if ver2num(torch.__version__) >= ver2num('1.9.0'):
+        if PT_VER >= ver2num('1.9.0'):
             self._fit_closely = False
             self.cost = nn.HuberLoss(delta=delta)
         else:
@@ -1916,9 +1952,13 @@ class SSIM(Craft):
 
 class WarmUpWrapper():
     def __init__(self, warmup, scheduler):
+        if PT_VER >= ver2num('2.0'):
+            scheduler_base = torch.optim.lr_scheduler.LRScheduler
+        else:
+            scheduler_base = torch.optim.lr_scheduler._LRScheduler
         self.warmup = warmup
         self.mile = -1
-        if isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler):
+        if issubclass(type(scheduler), scheduler_base):
             self.scheduler = scheduler
             self.optz = scheduler.optimizer
         else:
@@ -1994,13 +2034,21 @@ class WavyLR(object):
 
 
 
+try:
+    from torch._dynamo import OptimizedModule
+    compiled_mod = OptimizedModule
+except ImportError:
+    compiled_mod = str # whatever
+
 class Momentum(Craft):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='MOMENTUM'):
         super(Momentum, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2010,7 +2058,7 @@ class Momentum(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2042,9 +2090,11 @@ class Nesterov(Craft):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='NESTEROV'):
         super(Nesterov, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2054,7 +2104,7 @@ class Nesterov(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2086,9 +2136,11 @@ class RMSProp(Craft):
     def __init__(self, hull, lr, mmnt=0., wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='RMSPROP'):
         super(RMSProp, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2098,7 +2150,7 @@ class RMSProp(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2130,9 +2182,11 @@ class Adam(Craft):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAM'):
         super(Adam, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2142,7 +2196,7 @@ class Adam(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2173,9 +2227,11 @@ class AdamW(Craft):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAMW'):
         super(AdamW, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2185,7 +2241,7 @@ class AdamW(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2279,9 +2335,11 @@ class Lion(Craft):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.99, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
         super(Lion, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2291,7 +2349,7 @@ class Lion(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0
@@ -2420,9 +2478,11 @@ class Lamb(Craft):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
         super(Lamb, self).__init__(scope)
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            update_var = hull.parameters()
+            update_var = hull.vars()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2432,7 +2492,7 @@ class Lamb(Craft):
                 craft = hull
                 for p in paths:
                     craft = getattr(craft, p)
-                update_var.append(craft.parameters())
+                update_var.append(craft.vars())
 
         self.grad_accum = grad_accum
         self.cnt = 0

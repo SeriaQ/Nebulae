@@ -24,10 +24,14 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 import os
 import torch
-from ..kit.utility import GPUtil
+from ..kit.utility import GPUtil, ver2num
 
 CPU = 0
 GPU = 1
+
+DYNAMIC = 20
+STATIC = 21
+FIXED = 22
 
 
 class Engine(object):
@@ -39,10 +43,14 @@ class Engine(object):
     if_conserve
     least_mem
     '''
-    def __init__(self, device=GPU, ngpu=1, least_mem=2048, avail_gpus=(), multi_piston=False):
+    def __init__(self, device=GPU, ngpu=1, least_mem=2048, avail_gpus=(), multi_piston=False, gearbox=DYNAMIC):
         self.rank = int(os.environ.get('RANK', -1))
         self.device = device
         self.multi_piston = multi_piston
+        if gearbox in (STATIC, FIXED) and ver2num(torch.__version__) < ver2num('2.0'):
+            print('NEBULAE WARNING ◘ The PyTorch version is lower than 2.0, hence the gearbox will be DYNAMIC as default.')
+            gearbox = DYNAMIC
+        self.gearbox = gearbox
         # look for available gpu devices
         if self.device == GPU:
             if len(avail_gpus) == 0:
@@ -61,7 +69,6 @@ class Engine(object):
             if self.rank>=0:
                 torch.backends.cudnn.benchmark = True
                 torch.cuda.set_device(self.rank)
-                torch.distributed.init_process_group(backend='nccl', init_method='env://')
             if self.rank<=0:
                 print('+' + 20 * '-' + '+')
                 print('| Reside in Devices: |')
@@ -73,6 +80,7 @@ class Engine(object):
                     print('+' + 70 * '-' + '+')
         elif self.device == CPU:
             assert self.rank<0
+            self.chip = [torch.device('cpu')]
             print('+' + (24 * '-') + '+')
             print('| Reside in Devices: \033[1;36mCPU\033[0m |')
             print('+' + (24 * '-') + '+')

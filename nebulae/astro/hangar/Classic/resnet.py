@@ -61,9 +61,9 @@ class Bottleneck(Craft):
         y = self.bn_3(y)
 
         if self.dsample:
-            self['identity'] = self.ds_bn(self.ds_conv(x))
+            x = self.ds_bn(self.ds_conv(x))
 
-        y += self['identity']
+        y += x
         y = self.relu(y)
 
         return y
@@ -120,7 +120,7 @@ class Resnet_V2(Craft):
 
     def run(self, x):
         self['input'] = x
-        y = self.conv_0(self['input'])
+        y = self.conv_0(x)
         y = self.bn_0(y)
         y = self.relu(y)
         y = self.mpool(y)
@@ -129,8 +129,8 @@ class Resnet_V2(Craft):
             blk = getattr(self, 'layer_%d'%i)
             y = blk(y)
 
-        self['out'] = self.gap(y)
-        return self['out']
+        y = self.gap(y)
+        return y
 
 
 
@@ -140,9 +140,10 @@ class Resnet_V2_50(Craft):
         self.backbone = Resnet_V2(in_shape, [3, 4, 6, 3])
 
     def run(self, x):
-        self['input'] = x
-        self['out'] = self.backbone(self['input'])
-        return self['out']
+        self['in'] = x
+        y = self.backbone(x)
+        self['out'] = y
+        return y
 
 
 class Resnet_V2_101(Craft):
@@ -152,8 +153,8 @@ class Resnet_V2_101(Craft):
 
     def run(self, x):
         self['input'] = x
-        self['out'] = self.backbone(self['input'])
-        return self['out']
+        y = self.backbone(x)
+        return y
 
 
 class Resnet_V2_152(Craft):
@@ -163,5 +164,5 @@ class Resnet_V2_152(Craft):
 
     def run(self, x):
         self['input'] = x
-        self['out'] = self.backbone(self['input'])
-        return self['out']
+        y = self.backbone(x)
+        return y

@@ -22,9 +22,9 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .engine import Engine, CPU, GPU
+from .engine import Engine, CPU, GPU, DYNAMIC, STATIC, FIXED
 from .time_machine import TimeMachine
 from .multiverse import Multiverse
 
 
-__all__ = ('Engine', 'TimeMachine', 'Multiverse', 'CPU', 'GPU')
+__all__ = ('Engine', 'TimeMachine', 'Multiverse', 'CPU', 'GPU', 'DYNAMIC', 'STATIC', 'FIXED')
