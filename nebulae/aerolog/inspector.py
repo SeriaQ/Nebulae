@@ -32,11 +32,13 @@ import os
 import sys
 import torch
 from ptflops.pytorch_engine import add_flops_counting_methods
+from ..law import Constant
 
 class Inspector(object):
 
     def __init__(self, export_path='./craft', verbose=True, hidden=(), onnx_ver=-1):
         self.export_path = export_path
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
         self.verbose = verbose
         self.hidden = hidden
         self.onnx_ver = onnx_ver
@@ -47,7 +49,7 @@ class Inspector(object):
         self.shapes = {}
 
     def paint(self, archit, *dummy_args, **dummy_kwargs):
-        rank = int(os.environ.get('RANK', -1))
+        rank = int(os.environ.get(Constant.ENV_RANK, -1))
         if rank > 0:
             return
 
@@ -140,7 +142,7 @@ class Inspector(object):
         return flops_count
 
     def dissect(self, archit, *dummy_args, **dummy_kwargs):
-        rank = int(os.environ.get('RANK', -1))
+        rank = int(os.environ.get(Constant.ENV_RANK, -1))
         if rank > 0:
             return
         

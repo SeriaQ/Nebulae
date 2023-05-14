@@ -92,7 +92,7 @@ class Tank(Dataset):
 
 class Depot(object):
     def __init__(self, engine):
-        self.rank = int(os.environ.get('RANK', -1))
+        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
         self.nworld = int(os.environ.get('WORLD_SIZE', 1))
         if hasattr(engine, 'chip'):
             if engine.multi_piston:

@@ -1038,18 +1038,20 @@ class AV1(VABC):
 if __name__ == '__main__':
     from time import time
     import cv2
+    from os.path import join as pjoin
     from PIL import ImageEnhance
+    DROOT = '/Users/Seria/Desktop/nebulae/test'
     # >| VABC test
     seq = []
     for i in range(5):
-        img = cv2.imread('/Users/Seria/Desktop/nebulae/test/vid/%04d.png'%(i+1))
+        img = cv2.imread('/vid/%04d.png'%(i+1))
         img = img[:,:,::-1]
         seq.append(img)
     cbr = Comburant(H264(30, 6e5))
     dst = cbr(seq)
     for i in range(5):
-        # dst[i].save('/Users/Seria/Desktop/nebulae/test/img/%04d.png'%(i+1), format='PNG', compress_level=0)
-        cv2.imwrite('/Users/Seria/Desktop/nebulae/test/img/np-lr-%03d.png' % (i + 1),
+        # dst[i].save(pjoin(DROOT, 'img/%04d.png'%(i+1)), format='PNG', compress_level=0)
+        cv2.imwrite(pjoin(DROOT, 'img/np-lr-%03d.png' % (i + 1)),
                     dst[i][:, :, ::-1], [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
 
@@ -1073,7 +1075,7 @@ if __name__ == '__main__':
     lrs = []
     hrs = []
     for i in range(niter):
-        path = '/Users/Seria/Desktop/nebulae/test/vid/%04d.png'%(i+1)
+        path = pjoin(DROOT, 'vid/%04d.png'%(i+1))
 
         # img = Image.open(path)
         # hrs.append(img)
@@ -1087,8 +1089,8 @@ if __name__ == '__main__':
     imgs = cbr([lrs, hrs])
     _t = time()
     for i in range(1):
-        # imgs[0][i].save('/Users/Seria/Desktop/nebulae/test/img/pil-lr-%03d.png' % (i + 1), format='PNG', compress_level=0)
-        # imgs[1][i].save('/Users/Seria/Desktop/nebulae/test/img/pil-hr-%03d.png' % (i + 1), format='PNG', compress_level=0)
-        cv2.imwrite('/Users/Seria/Desktop/nebulae/test/img/np-lr-%03d.png'%(i+1), imgs[0][i][:,:,::-1])#, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-        cv2.imwrite('/Users/Seria/Desktop/nebulae/test/img/np-hr-%03d.png'%(i+1), imgs[1][i][:,:,::-1])#, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        # imgs[0][i].save(pjoin(DROOT, 'img/pil-lr-%03d.png' % (i + 1)), format='PNG', compress_level=0)
+        # imgs[1][i].save(pjoin(DROOT, 'img/pil-hr-%03d.png' % (i + 1)), format='PNG', compress_level=0)
+        cv2.imwrite(pjoin(DROOT, 'img/np-lr-%03d.png'%(i+1)), imgs[0][i][:,:,::-1])#, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        cv2.imwrite(pjoin(DROOT, 'img/np-hr-%03d.png'%(i+1)), imgs[1][i][:,:,::-1])#, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     print((_t-t_)/niter)

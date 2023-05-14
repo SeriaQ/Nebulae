@@ -28,7 +28,6 @@ with different backend cores. Training and validation are included as well.
 '''
 
 import os
-# os.environ["NCCL_P2P_DISABLE"] = "1"
 import nebulae as neb
 from nebulae import kit, fuel, astro
 from nebulae.astro import dock, hangar, fn
@@ -50,14 +49,14 @@ def launch(mv=None):
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             plt.imsave('/root/proj/logs/ckpt/retro_%d_%d.jpg'%(epoch, mile), value[:,:,0], cmap='gray')
-    db = neb.aerolog.DashBoard(log_path="/root/proj/logs/ckpt",
+    db = neb.aerolog.DashBoard(log_dir="/root/proj/logs/ckpt",
                                window=15, divisor=15, span=70,
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=mv.nworld,)# gearbox=neb.cockpit.FIXED)
-    tm = neb.cockpit.TimeMachine(save_path="/root/proj/logs/ckpt",
-                                 ckpt_path="/root/proj/logs/ckpt")
+    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=mv.nworld, gearbox=neb.cockpit.DYNAMIC)
+    tm = neb.cockpit.TimeMachine(save_dir="/root/proj/logs/ckpt",
+                                 ckpt_dir="/root/proj/logs/ckpt")
 
     # ---------------------------------- Fuel ------------------------------------ #
     cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(0.1)),
@@ -200,7 +199,8 @@ def launch(mv=None):
             loss = dock.shell(loss)
             acc = dock.shell(acc)
             probe = {'Acc': acc, 'Loss':loss}
-            db.gauge(probe, mile, epoch, mpe, 'TRAIN', interval=2, duration=duration, is_global=True, is_elastic=True)
+            db.gauge(probe, mile, epoch, mpe, 'TRAIN', interval=2, duration=duration, \
+                        is_global=True, is_elastic=True, in_loop=(0, 1), last_for=16)
 
         mpe = dp.MPE[tkd]
         for mile in range(mpe):
@@ -218,8 +218,7 @@ def launch(mv=None):
             tm.drop(net, train.optz)
             best = curr
 
-    db.log() # history='/root/proj/logs/ckpt')
-    mv.cleanup()
+        db.log(subdir='%03d'%epoch) # history='/root/proj/logs/ckpt')
 
 
 

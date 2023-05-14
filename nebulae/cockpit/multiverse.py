@@ -27,6 +27,7 @@ import os
 # import multiprocessing as mp
 import torch.multiprocessing as mp
 from ..kit.utility import ver2num
+from ..law import Constant
 
 if ver2num(torch.__version__) >= ver2num('1.6.0'):
     is_new_version = True
@@ -124,15 +125,15 @@ class Multiverse(object):
         self.env["WORLD_SIZE"] = str(nworld)
         # self.env["OMP_NUM_THREADS"] = '1'
 
-    def cleanup(self):
-        torch.distributed.destroy_process_group()
+    def __del__(self):
+        if self.rank == 0:
+            torch.distributed.destroy_process_group()
 
     def __call__(self, *args, **kwargs):
         # mp.set_start_method('spawn')
         ps = []
         for r in range(self.nworld):
-            self.rank = r
-            self.env['RANK'] = str(r)
+            self.env[Constant.ENV_RANK] = str(r)
             self.env['LOCAL_RANK'] = str(r)
             p = mp.Process(target=self.universe, args=(self,)+args, kwargs=kwargs)
             p.start()
@@ -143,18 +144,17 @@ class Multiverse(object):
         # mp.spawn(self.universe, args=(self,)+args, nprocs=self.nworld)
 
     def init(self):#, rank):
-        # os.environ['RANK'] = str(rank)
+        # os.environ[Constant.ENV_RANK] = str(rank)
         for k, v in self.env.items():
             os.environ[k] = v
-        rank = int(os.environ['RANK'])
-        torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=self.nworld)
+        self.rank = int(os.environ[Constant.ENV_RANK])
+        torch.distributed.init_process_group(backend="nccl", rank=self.rank, world_size=self.nworld)
 
     def _sync(self, model):
-        rank = int(os.environ['RANK'])
         scope = model.scope
         if is_new_version:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DDP(model, device_ids=[rank], output_device=rank)
+            model = DDP(model, device_ids=[self.rank], output_device=self.rank)
         else:
             model = parallel.convert_syncbn_model(model)
             model = DDP(model, delay_allreduce=True)

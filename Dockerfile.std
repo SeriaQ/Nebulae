@@ -1,0 +1,47 @@
+# pull the nvidia image
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
+
+# prohibit interaction during this build
+ARG DEBIAN_FRONTEND=noninteractive
+ARG HOME_DIR=/root
+ARG PY_MINOR_VER=8
+
+# replace apt source
+RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# install python and pip
+RUN apt-get update && apt-get install -y \
+build-essential \
+python3.${PY_MINOR_VER} \
+python3-dev \
+python3-pip \
+git \
+wget \
+vim \
+psmisc \
+openssl \
+openssh-server \
+openssh-client
+RUN rm -f /usr/bin/python && ln -s /usr/bin/python3.${PY_MINOR_VER} /usr/bin/python && \
+rm -f /usr/bin/pip && ln -s /usr/bin/pip3 /usr/bin/pip
+
+# clean cache
+RUN rm -rf /var/lib/apt/lists/*
+
+# replace pip source
+RUN mkdir -p ${HOME_DIR}/.config/pip && touch ${HOME_DIR}/.config/pip/pip.conf
+RUN echo '[global]' |tee -a ${HOME_DIR}/.config/pip/pip.conf > tmp.log && \
+echo 'index-url = http://pypi.tuna.tsinghua.edu.cn/simple' |tee -a ${HOME_DIR}/.config/pip/pip.conf > tmp.log &&\
+echo '[install]' |tee -a ${HOME_DIR}/.config/pip/pip.conf > tmp.log && \
+echo 'trusted-host = pypi.tuna.tsinghua.edu.cn' |tee -a ${HOME_DIR}/.config/pip/pip.conf > tmp.log && \
+rm tmp.log
+
+# install python libs
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+RUN pip install nebulae \
+requests \
+opencv-python==4.6.0.66
+
+# default command
+CMD ["/bin/bash"]

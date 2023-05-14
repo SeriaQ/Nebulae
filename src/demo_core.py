@@ -28,8 +28,6 @@ with different backend cores. Training and validation are included as well.
 '''
 
 import os
-# os.environ["OMP_NUM_THREADS"] = "1"
-# os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 import nebulae as neb
 from nebulae import kit, fuel, astro
 from nebulae.astro import dock, hangar, fn
@@ -50,14 +48,14 @@ def launch(mv=None):
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             plt.imsave('/root/proj/logs/ckpt/retro_%d_%d.jpg'%(epoch, mile), value[:,:,0], cmap='gray')
-    db = neb.aerolog.DashBoard(log_path="/root/proj/logs/ckpt",
+    db = neb.aerolog.DashBoard(log_dir="/root/proj/logs/ckpt",
                                window=15, divisor=15, span=70,
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
     ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=2, multi_piston=True)# gearbox=neb.cockpit.FIXED)
-    tm = neb.cockpit.TimeMachine(save_path="/root/proj/logs/ckpt",
-                                 ckpt_path="/root/proj/logs/ckpt")
+    tm = neb.cockpit.TimeMachine(save_dir="/root/proj/logs/ckpt",
+                                 ckpt_dir="/root/proj/logs/ckpt")
 
     # ---------------------------------- Fuel ------------------------------------ #
     cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(0.1)),
@@ -215,7 +213,7 @@ def launch(mv=None):
             tm.drop(net, train.optz)
             best = curr
 
-    db.log() # history='/root/proj/logs/ckpt')
+        db.log() # history='/root/proj/logs/ckpt')
 
 
 

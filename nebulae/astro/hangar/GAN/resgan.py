@@ -31,9 +31,9 @@ class Discriminator(Craft):
         super(Discriminator, self).__init__(scope)
         H, W, C = in_shape
         min_size = min(H, W)
-        factor = {64: base_chs / 32,
-                  128: base_chs / 16,
-                  256: base_chs / 64}
+        factor = {64: base_chs // 32,
+                  128: base_chs // 16,
+                  256: base_chs // 64}
         self.backbone = ResD(in_shape, base_chs, norm_fn, attention, spec_norm, w_init)
         if spec_norm:
             self.cls = dock.SN(dock.Dense(int(H * W * factor[min_size]), 1))

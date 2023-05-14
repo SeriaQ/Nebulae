@@ -25,29 +25,32 @@ Email: zzqsummerai@yeah.net
 import torch
 import os
 from glob import glob
+from ..law import Constant
 
 
 
 class TimeMachine(object):
-    def __init__(self, ckpt_path, save_path, max_anchors=-1):
+    def __init__(self, ckpt_dir, save_dir, max_anchors=-1):
         '''
         Time Machine saves current states or restores saved states
         '''
-        self.rank = int(os.environ.get('RANK', -1))
-        self.ckpt_path = ckpt_path
-        self.save_path = save_path
+        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        self.ckpt_dir = ckpt_dir
+        self.save_dir = save_dir
+        os.makedirs(ckpt_dir, exist_ok=True)
+        os.makedirs(save_dir, exist_ok=True)
         self.max_anchors = max_anchors
         self.counter = 1
         self.anchors = []
 
     def to(self, craft, optz=None, file='', ckpt_scope=None, frozen=False):
-        assert self.ckpt_path is not None, Exception('NEBULAE ERROR ⨷ anchor location is not provided.')
+        assert self.ckpt_dir is not None, Exception('NEBULAE ERROR ⨷ anchor location is not provided.')
 
-        ckpt_path = os.path.join(self.ckpt_path, file)
-        if os.path.isfile(ckpt_path):
-            moment = ckpt_path
+        ckpt_dir = os.path.join(self.ckpt_dir, file)
+        if os.path.isfile(ckpt_dir):
+            moment = ckpt_dir
         else:
-            architecture = glob(os.path.join(ckpt_path,'*.pth'))
+            architecture = glob(os.path.join(ckpt_dir, '*.pth'))
             latest = -1
             moment = None
             for arch in architecture:
@@ -60,7 +63,11 @@ class TimeMachine(object):
 
         states = torch.load(moment)
         if optz is not None:
-            optz.load_state_dict(states['optz'])
+            if isinstance(optz, dict):
+                for k, v in optz.items():
+                    v.load_state_dict(states[k])
+            else:
+                optz.load_state_dict(states['optz'])
             states = states['net']
         if not ckpt_scope is None:
             ckpt_scope = ckpt_scope.replace('/', '.')
@@ -74,20 +81,25 @@ class TimeMachine(object):
     def drop(self, craft, optz=None, file='', save_scope=None, frozen=False):
         if self.rank>0:
             return
-        assert self.save_path is not None, Exception('NEBULAE ERROR ⨷ there is nowhere to drop anchor.')
+        assert self.save_dir is not None, Exception('NEBULAE ERROR ⨷ there is nowhere to drop anchor.')
 
-        save_path = os.path.join(self.save_path, file)
+        save_dir = os.path.join(self.save_dir, file)
         states = craft.state_dict()
         if save_scope is not None:
             save_scope = save_scope.replace('/', '.')
             states = {k:v for k,v in states.items() if k.startswith(save_scope)}
         if optz is not None:
-            states = {'net': states, 'optz': optz.state_dict()}
+            if isinstance(optz, dict):
+                states = {'net': states}
+                for k, v in optz.items():
+                    states[k] = v.state_dict()
+            else:
+                states = {'net': states, 'optz': optz.state_dict()}
 
-        if save_path.endswith('.pth'):
-            save_ckpt = save_path
+        if save_dir.endswith('.pth'):
+            save_ckpt = save_dir
         else:
-            save_ckpt = os.path.join(save_path, '%s-%d.pth'%(craft.scope, self.counter))
+            save_ckpt = os.path.join(save_dir, '%s-%d.pth'%(craft.scope, self.counter))
         torch.save(states, save_ckpt)
         self.counter += 1
         self.anchors.append(save_ckpt)

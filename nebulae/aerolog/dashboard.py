@@ -29,23 +29,24 @@ import numpy as np
 import time
 import pandas as pd
 import os
-import warnings
+from sys import stdout
+from ..law import Constant
 
 
 
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
-    def __init__(self, log_path='./aerolog', window=1, divisor=10, span=30, format=None):
+    def __init__(self, log_dir='./aerolog', window=1, divisor=10, span=30, format=None):
         '''
         :param config:
         :param window: the window length of moving average
         :param format: a list of which the element is format and mode, e.g. ['3f', 'raw']
         '''
-        self.rank = int(os.environ.get('RANK', -1))
-        if not os.path.exists(log_path):
-            os.mkdir(log_path)
-        self.log_path = log_path
+        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+        self.log_dir = log_dir
         self.window = window
         self.divisor = divisor
         self.span = span
@@ -91,10 +92,11 @@ class DashBoard(object):
         else:
             raise KeyError('%s is an illegal format option.' % mode)
 
-    def gauge(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, plot=True, flush=0,
+    def gauge(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, plot=True, wipe=False, flush=0,
               is_global=True, is_elastic=False, in_loop=(-1,), last_for=1):
         if self.rank>0:
             return
+        assert not (plot and wipe), 'NEBULAE ERROR ⨷ plot and wipe are mutually exclusive.'
         epoch += 1
         mile += 1
         string_mile = ''
@@ -190,16 +192,28 @@ class DashBoard(object):
                 duration = '--:--'
             else:
                 duration = '%.3f'%duration
-            print('| %d%s Epoch ✇ %d Miles ⊰⟦\033[43m%s\033[0m%s⟧⊱︎ ⧲ %ss/mile | %s |%s     '
-                  % (epoch, ordinal, mile, yellow_bar, space_bar, duration, stage, string_mile), end='\n')
-            if curve_exists:
-                print(f'\033[{self.divisor+flush+7}A')
+            if wipe:
+                end_char = '\r'
             else:
-                print(f'\033[2A')
+                end_char = '\n'
+            print('| %d%s Epoch ✇ %d Miles ⊰⟦\033[43m%s\033[0m%s⟧⊱︎ ⧲ %ss/mile | %s |%s     '
+                  % (epoch, ordinal, mile, yellow_bar, space_bar, duration, stage, string_mile), end=end_char)
+            if wipe:
+                stdout.flush()
+            else:
+                if curve_exists:
+                    print(f'\033[{self.divisor+flush+7}A')
+                else:
+                    print(f'\033[2A')
+            
         if flag_epoch_end:
-            for _ in range(self.divisor+flush+6):
-                print(w * ' ')
-            print(f'\033[{self.divisor+flush+7}A')
+            if wipe:
+                print(2 * w * ' ', end='\r')
+                stdout.flush()
+            else:
+                for _ in range(self.divisor+flush+6):
+                    print(w * ' ')
+                print(f'\033[{self.divisor+flush+7}A')
             ordinal = self._getOridinal(epoch)
             mileage = str(epoch * mpe)
             display = '| %d%s Epoch ✇ %s Miles ︎⧲ %.2fs/epoch | %s |%s' \
@@ -239,9 +253,14 @@ class DashBoard(object):
         idx[1] += 1
         return m + idx
 
-    def log(self, gauge=True, tachograph=True, history=''):
+    def log(self, gauge=True, tachograph=True, history='', subdir=''):
         if self.rank>0:
             return
+        if subdir:
+            log_dir = os.path.join(self.log_dir, subdir)
+            os.makedirs(log_dir, exist_ok=True)
+        else:
+            log_dir = self.log_dir
         if history:
             for f in os.listdir(history):
                 if not f.endswith('csv'):
@@ -280,7 +299,7 @@ class DashBoard(object):
                     ax.annotate(('%%%s' % (self.format[entry][0])) % ymax, (xmax - xoff, ymax + yoff))
                     data = pd.DataFrame({b: self.gauge_mile[b]}, index=self.trail_mile[stage])
                     sns.lineplot(data=data, markers=False, ax=ax)
-                    plt.savefig(os.path.join(self.log_path, '%s_%s_%.3g_mile_%d.jpg'
+                    plt.savefig(os.path.join(log_dir, '%s_%s_%.3g_mile_%d.jpg'
                                     % (k.replace('/', '-'), stage, self.gauge_mile[b][-1], self.trail_mile[stage][-1])))
                     plt.close()
 
@@ -300,28 +319,28 @@ class DashBoard(object):
                     data = pd.DataFrame({b: np.asarray(self.gauge_epoch[b]) for b in boards[k]},
                                         index=self.trail_epoch[stage])
                     sns.lineplot(data=data, markers=True, ax=ax)
-                    plt.savefig(os.path.join(self.log_path, '%s_epoch_%d.jpg' % (k, self.max_epoch)))
+                    plt.savefig(os.path.join(log_dir, '%s_epoch_%d.jpg' % (k, self.max_epoch)))
                 plt.close()
         if tachograph:
             for k in self.gauge_mile.keys():
                 stage, metric = k.split(':')
                 df = pd.DataFrame(data={'mile': self.trail_mile[stage], k: self.gauge_mile[k]})
-                df.to_csv(os.path.join(self.log_path, '%s_%s_mile.csv'%(metric.replace('/', '-'), stage)), index=None)
+                df.to_csv(os.path.join(log_dir, '%s_%s_mile.csv'%(metric.replace('/', '-'), stage)), index=None)
                 df = pd.DataFrame(data={'epoch': self.trail_epoch[stage], k: self.gauge_epoch[k]})
-                df.to_csv(os.path.join(self.log_path, '%s_%s_epoch.csv' % (metric.replace('/', '-'), stage)), index=None)
+                df.to_csv(os.path.join(log_dir, '%s_%s_epoch.csv' % (metric.replace('/', '-'), stage)), index=None)
 
 
 if __name__ == "__main__":
     import random as rand
-    # db = DashBoard(log_path="/Users/Seria/Desktop/nebulae/test/ckpt",
-    #                 window=15, divisor=15, span=70,
-    #                 format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"], "MAE": [".3f", "raw"]})
-    # for epoch in range(5):
-    #     for mile in range(10):
-    #         probe = {'Acc':rand.random(), 'Loss':rand.random()}
-    #         db.gauge(probe, mile, epoch, 10, 'TRAIN', interval=1, is_global=True)
-    #
-    #     for mile in range(10):
-    #         probe = {'Acc':rand.random()}
-    #         db.gauge(probe, mile, epoch, 10, 'DEV', interval=1, is_global=True)
-    # db.log()
+    db = DashBoard(log_dir="/Users/Seria/Desktop/nebulae/test/ckpt",
+                    window=15, divisor=15, span=70,
+                    format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"], "MAE": [".3f", "raw"]})
+    for epoch in range(5):
+        for mile in range(10):
+            probe = {'Acc':rand.random(), 'Loss':rand.random()}
+            db.gauge(probe, mile, epoch, 10, 'TRAIN', interval=1, is_global=True)
+    
+        for mile in range(10):
+            probe = {'Acc':rand.random()}
+            db.gauge(probe, mile, epoch, 10, 'DEV', interval=1, is_global=True)
+    db.log()

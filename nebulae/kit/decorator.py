@@ -37,18 +37,6 @@ def Timer(func):
     return _wrapper
 
 
-# def Formula(fn):
-#     def _decorator(func):
-#         def _wrapper(*args, **kwargs):
-#             ret = func(*args, **kwargs)
-#             ret.pods = fn
-#             return ret
-#
-#         return _wrapper
-#
-#     return _decorator
-
-
 def SPST(func):
     def _wrapper(*args, **kwargs):
         cv2.setNumThreads(0)

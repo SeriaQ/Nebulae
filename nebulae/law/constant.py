@@ -24,6 +24,7 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 class Constant(object):
     CORE = 'PYTORCH'
+    ENV_RANK = 'NEB_RANK'
     FIELD_SEP = '"'
     CHAR_SEP = ','
     FRAME_KEY = '_MAX_FRAMES'

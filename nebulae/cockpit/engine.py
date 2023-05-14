@@ -25,6 +25,7 @@ Email: zzqsummerai@yeah.net
 import os
 import torch
 from ..kit.utility import GPUtil, ver2num
+from ..law import Constant
 
 CPU = 0
 GPU = 1
@@ -44,7 +45,7 @@ class Engine(object):
     least_mem
     '''
     def __init__(self, device=GPU, ngpu=1, least_mem=2048, avail_gpus=(), multi_piston=False, gearbox=DYNAMIC):
-        self.rank = int(os.environ.get('RANK', -1))
+        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
         self.device = device
         self.multi_piston = multi_piston
         if gearbox in (STATIC, FIXED) and ver2num(torch.__version__) < ver2num('2.0'):

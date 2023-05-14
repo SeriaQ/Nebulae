@@ -390,7 +390,7 @@ class ResG(Craft):
             for i in range(len(self.ochs)):
                 rb = getattr(self, 'blk_%d' % i)
                 z = rb((z, self['latent_code']))
-                n_shape = z.shape
+                n_shape = list(z.shape)
                 n_shape[1] = 1
                 noise = dock.coat(np.random.normal(size=n_shape).astype('float32'))
                 strength = dock.coat(np.array(0).astype('float32'), as_const=False)
