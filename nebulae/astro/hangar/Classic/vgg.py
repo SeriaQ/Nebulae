@@ -22,10 +22,10 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 
 
-class VGG_16(Craft):
+class VGG_16(dock.Craft):
     def __init__(self, in_chs, p_drop=0.5, scope='VGG_16'):
         super(VGG_16, self).__init__(scope)
         self.p_drop = p_drop

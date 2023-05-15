@@ -29,8 +29,8 @@ with different backend cores. Training and validation are included as well.
 
 import os
 import nebulae as neb
-from nebulae import kit, fuel, astro
-from nebulae.astro import dock, hangar, fn
+from nebulae import kit, fuel
+from nebulae.astro import dock, fn
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -62,10 +62,14 @@ def launch(mv=None):
     cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(0.1)),
                               fuel.Random(0.5, fuel.Rotate(10)),
                               fuel.Resize((size, size)),
+                              fuel.End(),
                               fuel.HWC2CHW(),
+                              fuel.Whiten(0.5, 0.5),
                               is_encoded=True)
     cb_dev = fuel.Comburant(fuel.Resize((size, size)),
+                            fuel.End(),
                             fuel.HWC2CHW(),
+                            fuel.Whiten(0.5, 0.5),
                             is_encoded=True)
 
     class TrainSet(fuel.Tank):
@@ -107,7 +111,7 @@ def launch(mv=None):
                       batch_size=32, shuffle=False)
 
     # -------------------------------- Space Dock --------------------------------- #
-    class Net(astro.Craft):
+    class Net(dock.Craft):
         def __init__(self, nclass, scope):
             super(Net, self).__init__(scope)
             # self.formulate(fn('res/in') >> fn('res/out'))
@@ -118,7 +122,7 @@ def launch(mv=None):
             # pad = dock.autopad((2, 2), 2)
             # self.mpool = dock.MaxPool((2, 2), padding=pad)
 
-            self.res = hangar.Resnet_V2_152((size, size, 3))
+            self.res = neb.astro.hangar.Resnet_V2_152((size, size, 3))
             self.flat = dock.Reshape()
             self.fc = dock.Dense(2048, nclass) # 512 2048
 
@@ -134,7 +138,7 @@ def launch(mv=None):
 
             return y, f
 
-    class Train(astro.Craft):
+    class Train(dock.Craft):
         def __init__(self, net, scope='TRAIN'):
             super(Train, self).__init__(scope)
             self.net = net
@@ -155,7 +159,7 @@ def launch(mv=None):
             self.net.update()
             return loss, acc
 
-    class Dev(astro.Craft):
+    class Dev(dock.Craft):
         def __init__(self, net, scope='DEVELOP'):
             super(Dev, self).__init__(scope)
             self.net = net

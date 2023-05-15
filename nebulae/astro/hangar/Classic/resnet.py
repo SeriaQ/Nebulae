@@ -22,12 +22,12 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 from math import ceil
 
 
 
-class Bottleneck(Craft):
+class Bottleneck(dock.Craft):
     def __init__(self, in_shape, neck_chs, body_chs, stride=1, dsample=False, scope='BOTTLENECK'):
         super(Bottleneck, self).__init__(scope)
         H, W, C = in_shape
@@ -69,7 +69,7 @@ class Bottleneck(Craft):
         return y
 
 
-class ResBlock(Craft):
+class ResBlock(dock.Craft):
     def __init__(self, in_shape, nchs, nblock, stride=1, width_multp=4, scope='RESBLOCK'):
         super(ResBlock, self).__init__(scope)
         H, W, C = in_shape
@@ -87,7 +87,7 @@ class ResBlock(Craft):
         return x
 
 
-class Resnet_V2(Craft):
+class Resnet_V2(dock.Craft):
     def __init__(self, in_shape, nblocks, scope='RESNET_V2'):
         super(Resnet_V2, self).__init__(scope)
         H, W, C = in_shape
@@ -134,7 +134,7 @@ class Resnet_V2(Craft):
 
 
 
-class Resnet_V2_50(Craft):
+class Resnet_V2_50(dock.Craft):
     def __init__(self, in_shape, scope='RESNET_V2_50'):
         super(Resnet_V2_50, self).__init__(scope)
         self.backbone = Resnet_V2(in_shape, [3, 4, 6, 3])
@@ -146,7 +146,7 @@ class Resnet_V2_50(Craft):
         return y
 
 
-class Resnet_V2_101(Craft):
+class Resnet_V2_101(dock.Craft):
     def __init__(self, in_shape, scope='RESNET_V2_101'):
         super(Resnet_V2_101, self).__init__(scope)
         self.backbone = Resnet_V2(in_shape, [3, 4, 23, 3])
@@ -157,7 +157,7 @@ class Resnet_V2_101(Craft):
         return y
 
 
-class Resnet_V2_152(Craft):
+class Resnet_V2_152(dock.Craft):
     def __init__(self, in_shape, scope='RESNET_V2_152'):
         super(Resnet_V2_152, self).__init__(scope)
         self.backbone = Resnet_V2(in_shape, [3, 8, 36, 3])

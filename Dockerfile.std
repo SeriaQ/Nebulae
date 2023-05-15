@@ -40,7 +40,6 @@ rm tmp.log
 # install python libs
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 RUN pip install nebulae \
-requests \
 opencv-python==4.6.0.66
 
 # default command

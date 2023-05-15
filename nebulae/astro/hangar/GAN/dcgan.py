@@ -22,12 +22,12 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 from .architect import ConvG, ConvD
 
 from math import ceil
 
-class Discriminator(Craft):
+class Discriminator(dock.Craft):
     def __init__(self, in_shape, scope='DSC'):
         super(Discriminator, self).__init__(scope)
         H, W, C = in_shape
@@ -42,7 +42,7 @@ class Discriminator(Craft):
 
 
 
-class DCGAN(Craft):
+class DCGAN(dock.Craft):
     def __init__(self, in_shape, latent_dim=128, scope='DCGAN'):
         super(DCGAN, self).__init__(scope)
         self.G = ConvG(in_shape, latent_dim)

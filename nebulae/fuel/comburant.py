@@ -40,8 +40,9 @@ except:
     print('NEBULAE WARNING ◘ that PyAV has not been installed properly results in failure of video augmentation.')
 
 
-__all__ = ('Comburant', 'HW2CHW', 'HWC2CHW', 'Random',
-           'multiple',
+__all__ = ('Comburant',
+           'HW2CHW', 'HWC2CHW', 'Whiten', 'Random',
+           'multiple', 'End', 'Void',
            'NEAREST', 'LINEAR', 'CUBIC', 'HORIZONTAL', 'VERTICAL',
            'Pad', 'Resize',
            'Crop', 'Flip', 'Rotate',
@@ -70,7 +71,7 @@ POISSON = 31
 
 
 class Comburant(object):
-    def __init__(self, *args, format=NUMPY, is_encoded=False, end=True):
+    def __init__(self, *args, format=NUMPY, is_encoded=False):
         if format == NUMPY:
             pass
         elif format == PIL:
@@ -78,16 +79,11 @@ class Comburant(object):
         else:
             raise Exception('NEBULAE ERROR ⨷ the image format is not defined or supported.')
         self.format = format
-        # if len(args) > 0 and isinstance(args[-1], HWC2CHW):
-        #     ls_args = list(args[:-1])
-        #     self.cvt_form = args[-1]
-        # else:
         ls_args = list(args)
         for a in args:
             a._format = format
         self.comburants = ls_args
         self.is_encoded = is_encoded
-        self.end = end
 
     def _byte2arr(self, imgs):
         if isinstance(imgs, abc.Sequence):
@@ -114,8 +110,6 @@ class Comburant(object):
                 dst = src.astype(np.float32) / 255.
             else:
                 dst = src.astype(np.float32) / 255.
-            # if hasattr(self, 'cvt_form'):
-            #     dst = self.cvt_form(dst)
         return dst
 
     def __call__(self, src):
@@ -125,12 +119,11 @@ class Comburant(object):
             src = self._byte2arr(src)
         # >| go through comburants
         for cbr in self.comburants:
-            src = cbr(src)
-        if self.end:
-            dst = self._post(src)
-            return dst
-        else:
-            return src
+            if isinstance(cbr, End):
+                src = self._post(src)
+            else:
+                src = cbr(src)
+        return src
 
 
 
@@ -166,21 +159,63 @@ class ABC(object):
 
 
 
-class HW2CHW(object):
+class HW2CHW(ABC):
     def __init__(self):
         super(HW2CHW, self).__init__()
 
-    def __call__(self, img):
-        return np.expand_dims(img, 0)
+    def call(self, img):
+        if self._format == NUMPY:
+            return np.expand_dims(img, 0)
+        elif self._format == PIL:
+            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+
+    def __call__(self, imgs):
+        ret = self.exec(imgs)
+        return ret
 
 
 
-class HWC2CHW(object):
+class HWC2CHW(ABC):
     def __init__(self):
         super(HWC2CHW, self).__init__()
 
-    def __call__(self, img):
-        return np.transpose(img, (2, 0, 1))
+    def call(self, img):
+        if self._format == NUMPY:
+            return np.transpose(img, (2, 0, 1))
+        elif self._format == PIL:
+            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+
+    def __call__(self, imgs):
+        ret = self.exec(imgs)
+        return ret
+
+
+
+class Whiten(ABC):
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+        super(Whiten, self).__init__()
+        if isinstance(mean, (tuple, list)):
+            self.mean = np.array(mean, dtype=np.float32)[np.newaxis, :, np.newaxis, np.newaxis]
+        elif isinstance(mean, (float, int)):
+            self.mean = float(mean)
+        else:
+            raise Exception('NEBULAE ERROR ⨷ mean value must be a number or array.')
+        if isinstance(std, (tuple, list)):
+            self.std = np.array(std, dtype=np.float32)[np.newaxis, :, np.newaxis, np.newaxis]
+        elif isinstance(std, (float, int)):
+            self.std = float(std)
+        else:
+            raise Exception('NEBULAE ERROR ⨷ std value must be a number or array.')
+
+    def call(self, img):
+        if self._format == NUMPY:
+            return (img - self.mean) / self.std
+        elif self._format == PIL:
+            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+
+    def __call__(self, imgs):
+        ret = self.exec(imgs)
+        return ret
 
 
 
@@ -220,6 +255,15 @@ def multiple(scales):
         return lambda x: [_multiply(x, s) for s in scales]
     else:
         raise TypeError('NEBULAE ERROR ⨷ non-iterable scales does not make sense.')
+
+
+
+class End(object):
+    def __init__(self):
+        pass
+
+    def __call__(self):
+        pass
 
 
 

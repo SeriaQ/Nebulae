@@ -22,12 +22,12 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft, fn
+from ... import dock, fn
 from .architect import ResVQE, ResVQD, VecQuant
 
 
 
-class VQVAE(Craft):
+class VQVAE(dock.Craft):
     def __init__(self, in_shape, hidden_dim, ncodes, scope='VQVAE'):
         super(VQVAE, self).__init__(scope)
         self.formulate(fn('input') >> fn('encoded') >> fn('quantized'),

@@ -22,7 +22,7 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import Craft, dock
+from ... import dock
 
 from math import ceil
 import numpy as np
@@ -36,7 +36,7 @@ LN = 24
 
 
 
-class MLPG(Craft):
+class MLPG(dock.Craft):
     def __init__(self, in_shape, latent_dim, scope='MLPG'):
         super(MLPG, self).__init__(scope)
         H, W, C = in_shape
@@ -81,7 +81,7 @@ class MLPG(Craft):
         return self['fake']
 
 
-class MLPD(Craft):
+class MLPD(dock.Craft):
     def __init__(self, in_shape, latent_dim, scope='MLPD'):
         super(MLPD, self).__init__(scope)
         H, W, C = in_shape
@@ -106,7 +106,7 @@ class MLPD(Craft):
 
 
 
-class ConvG(Craft):
+class ConvG(dock.Craft):
     def __init__(self, in_shape, latent_dim, scope='CONVG'):
         super(ConvG, self).__init__(scope)
         H, W, C = in_shape
@@ -154,7 +154,7 @@ class ConvG(Craft):
 
         return self['fake']
 
-class DeconvG(Craft):
+class DeconvG(dock.Craft):
     def __init__(self, in_shape, latent_dim, scope='DECONVG'):
         super(DeconvG, self).__init__(scope)
         H, W, C = in_shape
@@ -199,7 +199,7 @@ class DeconvG(Craft):
 
         return self['fake']
 
-class ConvD(Craft):
+class ConvD(dock.Craft):
     def __init__(self, in_shape, scope='CONVD'):
         super(ConvD, self).__init__(scope)
         H, W, C = in_shape
@@ -245,7 +245,7 @@ class ConvD(Craft):
 
 
 
-class ResBlock(Craft):
+class ResBlock(dock.Craft):
     def __init__(self, in_shape, neck_chs, body_chs, stride=1, norm_fn=BN,
                  attention=False, spec_norm=False, w_init=dock.XavierNorm(), scope='RESBLK'):
         super(ResBlock, self).__init__(scope)
@@ -327,7 +327,7 @@ class ResBlock(Craft):
         return y
 
 
-class ResG(Craft):
+class ResG(dock.Craft):
     def __init__(self, in_shape, latent_dim, base_chs, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESG'):
         super(ResG, self).__init__(scope)
@@ -413,7 +413,7 @@ class ResG(Craft):
 
         return self['fake']
 
-class ResD(Craft):
+class ResD(dock.Craft):
     def __init__(self, in_shape, base_chs, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESD'):
         super(ResD, self).__init__(scope)
@@ -479,7 +479,7 @@ class ResD(Craft):
 
 
 
-class NonLocal(Craft):
+class NonLocal(dock.Craft):
     def __init__(self, in_shape, att_chs, neck_chs, spec_norm, w_init, scope='NONLOCAL'):
         super(NonLocal, self).__init__(scope)
         # Channel multiplier
@@ -537,7 +537,7 @@ class NonLocal(Craft):
 
 
 
-class BigResBlock(Craft):
+class BigResBlock(dock.Craft):
     def __init__(self, in_shape, neck_chs, body_chs, stride=1, norm_fn=BN, ups=None, downs=None,
                  attention=False, spec_norm=False, w_init=dock.XavierNorm(), scope='BIGRESBLK'):
         super(BigResBlock, self).__init__(scope)
@@ -643,7 +643,7 @@ class BigResBlock(Craft):
         return y
 
 
-class BigG(Craft):
+class BigG(dock.Craft):
     def __init__(self, in_shape, latent_dim, base_chs, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='BIGG'):
         super(BigG, self).__init__(scope)
@@ -718,7 +718,7 @@ class BigG(Craft):
 
         return self['fake']
 
-class BigD(Craft):
+class BigD(dock.Craft):
     def __init__(self, in_shape, base_chs, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='BIGD'):
         super(BigD, self).__init__(scope)

@@ -22,14 +22,14 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 from .architect import MLPE, MLPD
 
 
 
 
 
-class VAE(Craft):
+class VAE(dock.Craft):
     def __init__(self, in_shape, hidden_dim, latent_dim, scope='VAE'):
         super(VAE, self).__init__(scope)
         self.E = MLPE(in_shape, hidden_dim, latent_dim)

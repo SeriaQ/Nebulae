@@ -22,6 +22,5 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .craft import Craft
 from .dock import fn
 from . import hangar

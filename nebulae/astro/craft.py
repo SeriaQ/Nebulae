@@ -33,7 +33,8 @@ from ..cockpit import CPU, GPU
 from ..kit import ver2num
 from ..law import Constant
 
-__all__ = ('Rudder', 'Prober', 'Nozzle',
+__all__ = ('Craft',
+           'Rudder', 'Prober', 'Nozzle',
            'NEAREST', 'LINEAR', 'CUBIC', 'AREA',
            'CONSTANT', 'REFLECT', 'REPLICATE',
            'Void', 'XavierNorm', 'XavierUnif', 'Normal', 'Uniform', 'Orthog', 'Zeros', 'Ones',

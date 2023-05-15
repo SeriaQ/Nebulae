@@ -22,11 +22,11 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 from .architect import ResG, ResD, BN
 
 
-class Discriminator(Craft):
+class Discriminator(dock.Craft):
     def __init__(self, in_shape, base_chs, norm_fn, attention, spec_norm, w_init, scope='DSC'):
         super(Discriminator, self).__init__(scope)
         H, W, C = in_shape
@@ -48,7 +48,7 @@ class Discriminator(Craft):
 
 
 
-class ResGAN(Craft):
+class ResGAN(dock.Craft):
     def __init__(self, in_shape, latent_dim=128, base_chs=64, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESGAN'):
         super(ResGAN, self).__init__(scope)

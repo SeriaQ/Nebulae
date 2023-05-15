@@ -22,7 +22,7 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Craft
+from ... import dock
 import numpy as np
 from math import ceil
 
@@ -35,7 +35,7 @@ LN = 24
 
 
 
-class MLPE(Craft):
+class MLPE(dock.Craft):
     def __init__(self, in_shape, hidden_dim, latent_dim, scope='MLPE'):
         super(MLPE, self).__init__(scope)
         H, W, C = in_shape
@@ -62,7 +62,7 @@ class MLPE(Craft):
         return mu, lv, z
 
 
-class MLPD(Craft):
+class MLPD(dock.Craft):
     def __init__(self, out_shape, hidden_dim, latent_dim, scope='MLPD'):
         super(MLPD, self).__init__(scope)
         H, W, C = out_shape
@@ -85,7 +85,7 @@ class MLPD(Craft):
 
 
 
-class DeconvD(Craft):
+class DeconvD(dock.Craft):
     def __init__(self, out_shape, latent_dim, scope='DECONVD'):
         super(DeconvD, self).__init__(scope)
         H, W, C = out_shape
@@ -131,7 +131,7 @@ class DeconvD(Craft):
         return self['fake']
 
 
-class ConvE(Craft):
+class ConvE(dock.Craft):
     def __init__(self, in_shape, scope='CONVE'):
         super(ConvE, self).__init__(scope)
         H, W, C = in_shape
@@ -197,7 +197,7 @@ class ConvE(Craft):
 
 
 
-class ResBlock(Craft):
+class ResBlock(dock.Craft):
     def __init__(self, in_shape, neck_chs, body_chs, stride=1, norm_fn=BN,
                  attention=False, spec_norm=False, w_init=dock.XavierNorm(), scope='RESBLK'):
         super(ResBlock, self).__init__(scope)
@@ -279,7 +279,7 @@ class ResBlock(Craft):
 
 
 
-class ResD(Craft):
+class ResD(dock.Craft):
     def __init__(self, in_shape, base_chs, latent_dim, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESD'):
         super(ResD, self).__init__(scope)
@@ -367,7 +367,7 @@ class ResD(Craft):
 
         return self['fake']
 
-class ResE(Craft):
+class ResE(dock.Craft):
     def __init__(self, in_shape, base_chs, latent_dim, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESE'):
         super(ResE, self).__init__(scope)
@@ -449,7 +449,7 @@ class ResE(Craft):
 
 
 
-class VecQuant(Craft):
+class VecQuant(dock.Craft):
     def __init__(self, k, d, scope='VECQUANT'):
         super(VecQuant, self).__init__(scope)
         self.dim = d
@@ -478,7 +478,7 @@ class VecQuant(Craft):
 
 
 
-class ResVQD(Craft):
+class ResVQD(dock.Craft):
     def __init__(self, in_shape, base_chs, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESVQD'):
         super(ResVQD, self).__init__(scope)
@@ -549,7 +549,7 @@ class ResVQD(Craft):
 
 
 
-class ResVQE(Craft):
+class ResVQE(dock.Craft):
     def __init__(self, in_shape, base_chs, ncodes, norm_fn=BN, attention=False,
                  spec_norm=False, w_init=dock.XavierNorm(), scope='RESVQE'):
         super(ResVQE, self).__init__(scope)

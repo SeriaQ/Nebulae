@@ -22,11 +22,11 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import Craft, dock
+from ... import dock
 from .architect import MLPG, MLPD
 
 
-class Discriminator(Craft):
+class Discriminator(dock.Craft):
     def __init__(self, in_shape, latent_dim, scope='DSC'):
         super(Discriminator, self).__init__(scope)
         self.backbone = MLPD(in_shape, latent_dim)
@@ -38,7 +38,7 @@ class Discriminator(Craft):
 
         return self['out']
 
-class GAN(Craft):
+class GAN(dock.Craft):
     def __init__(self, in_shape, latent_dim=128, scope='GAN'):
         super(GAN, self).__init__(scope)
         self.G = MLPG(in_shape, latent_dim)
