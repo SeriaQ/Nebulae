@@ -1,4 +1,4 @@
-<img src="https://s4.ax1x.com/2022/01/03/THE0u6.png" alt="nebulae-icon.png" width = "215" height = "219" />
+<img src="https://s4.ax1x.com/2022/01/03/THE0u6.png" alt="nebulae-icon.png" width = "128" height = "128" />
 
 # Nebulae Brochure
 

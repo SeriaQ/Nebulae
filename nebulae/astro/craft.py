@@ -69,9 +69,9 @@ REFLECT = 11
 REPLICATE = 12
 PT_PAD = {CONSTANT: 'constant', REFLECT: 'reflect', REPLICATE: 'replicate'}
 
-DYNAMIC = 20
-STATIC = 21
-FIXED = 22
+FREE = 20
+DYNAMIC = 21
+STATIC = 22
 
 PT_VER = ver2num(torch.__version__)
 
@@ -121,10 +121,10 @@ class Craft(nn.Module):
             else:
                 self.eval()
         elif isinstance(gr, Engine):
-            if gr.gearbox == STATIC:
+            if gr.gearbox == DYNAMIC:
                 torch.set_float32_matmul_precision('high')
-                self = torch.compile(self, dynamics=True)
-            elif gr.gearbox == FIXED:
+                self = torch.compile(self, dynamic=True)
+            elif gr.gearbox == STATIC:
                 torch.set_float32_matmul_precision('high')
                 self = torch.compile(self)
 

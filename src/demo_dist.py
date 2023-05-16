@@ -41,32 +41,43 @@ from time import time
 
 
 
-def launch(mv=None):
+def launch(cfg, mv=None):
     mv.init()
     kit.destine(121)
-    size = 32
+    ISIZE = cfg['hyper']['img_size']
+    BSIZE = cfg['hyper']['batch_size']
+    NEPOCH = cfg['hyper']['nepoch']
+    LR = cfg['hyper']['lr']
+    WD = cfg['hyper']['wd']
+    DSTEP = cfg['hyper']['decay_step']
+    DRATE = cfg['hyper']['decay_rate']
+    WARM = cfg['hyper']['warmup']
+    BRIGHT = cfg['aug']['bright']
+    ROTATE = cfg['aug']['rotate']
+    LROOT = cfg['env']['log_root']
+    DROOT = cfg['env']['data_root']
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             plt.imsave('/root/proj/logs/ckpt/retro_%d_%d.jpg'%(epoch, mile), value[:,:,0], cmap='gray')
-    db = neb.aerolog.DashBoard(log_dir="/root/proj/logs/ckpt",
+    db = neb.aerolog.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
                                window=15, divisor=15, span=70,
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=mv.nworld, gearbox=neb.cockpit.DYNAMIC)
-    tm = neb.cockpit.TimeMachine(save_dir="/root/proj/logs/ckpt",
-                                 ckpt_dir="/root/proj/logs/ckpt")
+    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=mv.nworld, gearbox=neb.cockpit.STATIC)
+    tm = neb.cockpit.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
+                                 ckpt_dir=os.path.join(DROOT, "ckpt"))
 
     # ---------------------------------- Fuel ------------------------------------ #
-    cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(0.1)),
-                              fuel.Random(0.5, fuel.Rotate(10)),
-                              fuel.Resize((size, size)),
+    cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(BRIGHT)),
+                              fuel.Random(0.5, fuel.Rotate(ROTATE)),
+                              fuel.Resize((ISIZE, ISIZE)),
                               fuel.End(),
                               fuel.HWC2CHW(),
                               fuel.Whiten(0.5, 0.5),
                               is_encoded=True)
-    cb_dev = fuel.Comburant(fuel.Resize((size, size)),
+    cb_dev = fuel.Comburant(fuel.Resize((ISIZE, ISIZE)),
                             fuel.End(),
                             fuel.HWC2CHW(),
                             fuel.Whiten(0.5, 0.5),
@@ -105,12 +116,12 @@ def launch(mv=None):
 
     # {'image': 'vuint8', 'label': 'int64'}
     dp = fuel.Depot(ng)
-    tkt = dp.mount(TrainSet("/root/proj/data/cifar10/cifar10_train.hdf5"),
-                        batch_size=128, shuffle=True, nworker=4)
-    tkd = dp.mount(DevSet("/root/proj/data/cifar10/cifar10_val.hdf5"),
-                      batch_size=32, shuffle=False)
+    tkt = dp.mount(TrainSet(os.path.join(DROOT, "cifar10/cifar10_train.hdf5")),
+                        batch_size=BSIZE, shuffle=True, nworker=4)
+    tkd = dp.mount(DevSet(os.path.join(DROOT, "cifar10/cifar10_val.hdf5")),
+                      batch_size=BSIZE, shuffle=False)
 
-    # -------------------------------- Space Dock --------------------------------- #
+    # -------------------------------- Astro Dock --------------------------------- #
     class Net(dock.Craft):
         def __init__(self, nclass, scope):
             super(Net, self).__init__(scope)
@@ -122,7 +133,7 @@ def launch(mv=None):
             # pad = dock.autopad((2, 2), 2)
             # self.mpool = dock.MaxPool((2, 2), padding=pad)
 
-            self.res = neb.astro.hangar.Resnet_V2_152((size, size, 3))
+            self.res = neb.astro.hangar.Resnet_V2_152((ISIZE, ISIZE, 3))
             self.flat = dock.Reshape()
             self.fc = dock.Dense(2048, nclass) # 512 2048
 
@@ -144,10 +155,10 @@ def launch(mv=None):
             self.net = net
             self.loss = dock.SftmXE(is_one_hot=False)
             self.acc = dock.AccCls(multi_class=False, is_one_hot=False)
-            self.optz = dock.Adam(self.net, 3e-3, wd=0, lr_decay=dock.StepLR(300, 0.8), warmup=390)
+            self.optz = dock.Adam(self.net, LR, wd=WD, lr_decay=dock.StepLR(DSTEP, DRATE), warmup=WARM)
 
         @kit.Timer
-        def run(self, x, z, de=False):
+        def run(self, x, z):
             self.net.off()
             with dock.Rudder() as rud:
                 self.net.gear(rud)
@@ -168,7 +179,7 @@ def launch(mv=None):
             # self.retro = dock.Retroact()
 
         @kit.Timer
-        def run(self, x, z, idx):
+        def run(self, x, z):
             self.net.on()
             with dock.Nozzle() as noz:
                 self.net.gear(noz)
@@ -176,7 +187,6 @@ def launch(mv=None):
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
                 loss, acc = mv.reduce((loss, acc))
-                # m = self.retro(f, y[0, idx])[0]
             return loss, acc#, m
 
     # --------------------------------- Inspect --------------------------------- #
@@ -186,20 +196,20 @@ def launch(mv=None):
     net = mv.sync(net)
     train = Train(net)
     dev = Dev(net)
-    sp = neb.aerolog.Inspector(export_path='/root/proj/logs/ckpt/res50', verbose=True, onnx_ver=9)
-    dummy_x = dock.coat(np.random.rand(1, 3, size, size).astype(np.float32))
+    sp = neb.aerolog.Inspector(export_path=os.path.join(LROOT, 'ckpt/res50'), verbose=True, onnx_ver=9)
+    dummy_x = dock.coat(np.random.rand(1, 3, ISIZE, ISIZE).astype(np.float32))
     sp.dissect(net, dummy_x)
     sp.paint(net, dummy_x)
 
     # --------------------------------- Launcher --------------------------------- #
     # tm.to(net, train.optz)
     best = 0
-    for epoch in range(5):
+    for epoch in range(NEPOCH):
         mpe = dp.MPE[tkt]
         for mile in range(mpe):
             batch = dp.next(tkt)
             img, label = dock.coat(batch['image']), dock.coat(batch['label'])
-            duration, loss, acc = train(img, label, epoch)
+            duration, loss, acc = train(img, label)
             loss = dock.shell(loss)
             acc = dock.shell(acc)
             probe = {'Acc': acc, 'Loss':loss}
@@ -209,12 +219,11 @@ def launch(mv=None):
         mpe = dp.MPE[tkd]
         for mile in range(mpe):
             batch = dp.next(tkd)
-            idx = int(dock.shell(batch['label'])[0])
+            # idx = int(dock.shell(batch['label'])[0])
             img, label = dock.coat(batch['image']), dock.coat(batch['label'])
-            duration, loss, acc = dev(img, label, idx)
+            duration, loss, acc = dev(img, label)
             loss = dock.shell(loss)
             acc = dock.shell(acc)
-            # fm = dock.shell(fm)
             probe = {'Acc': acc, 'Loss': loss}#, 'Img': fm}
             db.gauge(probe, mile, epoch, mpe, 'DEV', interval=2, duration=duration)
         curr = db.read('Acc', 'DEV')
@@ -222,11 +231,12 @@ def launch(mv=None):
             tm.drop(net, train.optz)
             best = curr
 
-        db.log(subdir='%03d'%epoch) # history='/root/proj/logs/ckpt')
+        db.log(subdir='%03d'%epoch) #, history=os.path.join(LROOT, 'ckpt'))
 
 
 
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
-    mv = neb.cockpit.Multiverse(launch, 2)
-    mv()
+    cfg = kit.parse_cfg('config_core.json')
+    mv = neb.cockpit.Multiverse(launch, cfg['env']['ngpu'])
+    mv(cfg)

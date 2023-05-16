@@ -132,10 +132,11 @@ class Multiverse(object):
     def __call__(self, *args, **kwargs):
         # mp.set_start_method('spawn')
         ps = []
+        kwargs['mv'] = self
         for r in range(self.nworld):
             self.env[Constant.ENV_RANK] = str(r)
             self.env['LOCAL_RANK'] = str(r)
-            p = mp.Process(target=self.universe, args=(self,)+args, kwargs=kwargs)
+            p = mp.Process(target=self.universe, args=args, kwargs=kwargs)
             p.start()
             ps.append(p)
         for p in ps:

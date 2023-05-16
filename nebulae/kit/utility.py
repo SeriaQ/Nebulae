@@ -606,7 +606,7 @@ class GPUtil():
                                     '--format=csv', '-l', '%d'%sec],
                                    stdout=self.file, stderr=subps.PIPE)
 
-    def status(self):
+    def stop(self):
         while self.process.poll() != 0: # if monitor hasn't terminated
             subps.call(['pkill', 'nvidia-smi'])
             sleep(1)
@@ -640,12 +640,14 @@ class GPUtil():
                 curr_t[gpu_id] = int(line[1])
                 curr_u[gpu_id] = int(line[2][:-2])
                 curr_m[gpu_id] = int(line[3][:-4]) / 100 # avoid overfloating
-                if t_ == '': # first line
-                    t_ = line[0]
+                if t_ == '': # have not gone over all gpus
+                    if gpu_id == n-1:
+                        t_ = line[0]
                 else:
                     duration = curr_s[gpu_id] - prev_s[gpu_id]
-                    if duration < 0: # cross hours
+                    if duration < 0: # cross hours, e.g. from 1:59:59 pm to 2:00:01 pm
                         duration += 1800
+                        # in case of disorder, e.g. previous line is 1:59:59 and current line is 1:59:58
                         duration = duration + 1800 if duration<0 else abs(duration-1800)
                     area_t[gpu_id] += duration * (curr_t[gpu_id] + prev_t[gpu_id]) / 2
                     area_u[gpu_id] += duration * (curr_u[gpu_id] + prev_u[gpu_id]) / 2
@@ -660,7 +662,7 @@ class GPUtil():
         _t = self._stamp2secs(_t)
         t = _t - t_
         t = t + 3600 * 24 if t<0 else t
-
+        
         stat = '+' + 67 * '-' + '+'
         stat += '\n| GPU | ' + 10 * ' ' + 'Name' + 11 * ' ' + ' | T.Celsius | V-Util |   Memory   |\n'
         stat += '+' + 67 * '-' + '+'
