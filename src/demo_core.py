@@ -229,8 +229,7 @@ def launch(cfg, mv=None):
             best = curr
 
         db.log()#, history=os.path.join(DROOT, 'ckpt'))
-    gu.stop()
-    print(gu)
+    gu.status()
 
 
 

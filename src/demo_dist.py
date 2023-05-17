@@ -202,6 +202,8 @@ def launch(cfg, mv=None):
     sp.paint(net, dummy_x)
 
     # --------------------------------- Launcher --------------------------------- #
+    gu = kit.GPUtil()
+    gu.monitor()
     # tm.to(net, train.optz)
     best = 0
     for epoch in range(NEPOCH):
@@ -232,6 +234,7 @@ def launch(cfg, mv=None):
             best = curr
 
         db.log(subdir='%03d'%epoch) #, history=os.path.join(LROOT, 'ckpt'))
+    gu.status()
 
 
 

@@ -559,6 +559,7 @@ def qr_Householder(A):
 
 class GPUtil():
     def __init__(self):
+        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
         self.process = None # the monitor process
         self.stat = 'No statistic for now.'
         self.gpus = [] # GPU names
@@ -566,9 +567,6 @@ class GPUtil():
             _ = p.stdout.readline()
             for line in p.stdout.readlines():
                 self.gpus.append(line.decode('utf-8').strip())
-
-    def __str__(self):
-        return self.stat
 
     def _stamp2secs(self, t):
         date, time = t.split(' ')
@@ -596,6 +594,8 @@ class GPUtil():
         return id_mem
 
     def monitor(self, sec=5):
+        if self.rank > 0:
+            return
         assert isinstance(sec, int), 'NEBULAE ERROR ⨷ the monitoring interval must be an integer.'
         if sec<5:
             print('NEBULAE WARNING ◘ monitor GPU too often might cause abnormal statistics.')
@@ -606,7 +606,9 @@ class GPUtil():
                                     '--format=csv', '-l', '%d'%sec],
                                    stdout=self.file, stderr=subps.PIPE)
 
-    def stop(self):
+    def status(self):
+        if self.rank > 0:
+            return
         while self.process.poll() != 0: # if monitor hasn't terminated
             subps.call(['pkill', 'nvidia-smi'])
             sleep(1)
@@ -672,6 +674,7 @@ class GPUtil():
         stat += '\n+' + 67 * '-' + '+'
         self.stat = stat
         os.remove('./temp_gpu_stat.csv')
+        print(self.stat)
 
 if __name__=='__main__':
     class Node():

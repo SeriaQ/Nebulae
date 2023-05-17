@@ -1966,17 +1966,26 @@ class WarmUpWrapper():
         else:
             self.scheduler = None
             self.optz = scheduler
-        self.lr = self.optz.defaults['lr']
+        self.lr_base = self.optz.defaults['lr']
+        self.__lr = []
         for group in self.optz.param_groups:
             group['lr'] = 0.
+
+    @property
+    def lr(self):
+        return self.__lr
 
     def step(self):
         self.mile += 1
         if self.mile<=self.warmup:
+            self.__lr = []
+            lr = self.lr_base * self.mile / self.warmup
             for group in self.optz.param_groups:
-                group['lr'] = self.lr * self.mile / self.warmup
+                group['lr'] = lr
+                self.__lr.append(lr)
         elif self.scheduler is not None:
             self.scheduler.step()
+            self.__lr = self.scheduler.get_last_lr()
 
 
 
@@ -2042,10 +2051,50 @@ try:
 except ImportError:
     compiled_mod = str # whatever
 
-class Momentum(Craft):
+
+class OptzABC(Craft):
+    def __init__(self, lr, lr_decay, warmup, scope):
+        super(OptzABC, self).__init__(scope)
+        self.lr_base = lr
+        self.__lr = []
+        self.mode = 0
+        if warmup>0:
+            self.mode = 1
+        elif lr_decay is not None:
+            self.mode = 2
+
+    @property
+    def lr(self):
+        if self.mode == 0:
+            return self.lr_base
+        elif self.mode == 1:
+            self.__lr = self.lr_decay.lr
+        else:
+            self.__lr = self.lr_decay.get_last_lr()
+
+        if len(self.__lr) == 0:
+            return self.lr_base
+        elif len(self.__lr) == 1:
+            return self.__lr[0]
+        else:
+            return self.__lr
+
+    def run(self, target):
+        self.optz.zero_grad()
+        target.backward()
+        self.cnt += 1
+        if self.cnt == self.grad_accum:
+            self.cnt = 0
+            self.optz.step()
+            if self.lr_decay is not None:
+                self.lr_decay.step()
+
+
+
+class Momentum(OptzABC):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='MOMENTUM'):
-        super(Momentum, self).__init__(scope)
+        super(Momentum, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2076,22 +2125,12 @@ class Momentum(Craft):
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
 
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
-
-class Nesterov(Craft):
+class Nesterov(OptzABC):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='NESTEROV'):
-        super(Nesterov, self).__init__(scope)
+        super(Nesterov, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2122,22 +2161,12 @@ class Nesterov(Craft):
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
 
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
-
-class RMSProp(Craft):
+class RMSProp(OptzABC):
     def __init__(self, hull, lr, mmnt=0., wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='RMSPROP'):
-        super(RMSProp, self).__init__(scope)
+        super(RMSProp, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2168,22 +2197,12 @@ class RMSProp(Craft):
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
 
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
-
-class Adam(Craft):
+class Adam(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAM'):
-        super(Adam, self).__init__(scope)
+        super(Adam, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2214,21 +2233,12 @@ class Adam(Craft):
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
 
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
-class AdamW(Craft):
+class AdamW(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAMW'):
-        super(AdamW, self).__init__(scope)
+        super(AdamW, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2258,16 +2268,6 @@ class AdamW(Craft):
             self.lr_decay = lr_decay(self.optz)
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
-
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
 
@@ -2332,11 +2332,10 @@ class _Lion(torch.optim.Optimizer):
         return loss
 
 
-
-class Lion(Craft):
+class Lion(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.99, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
-        super(Lion, self).__init__(scope)
+        super(Lion, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2366,16 +2365,6 @@ class Lion(Craft):
             self.lr_decay = lr_decay(self.optz)
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
-
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
 
 
 
@@ -2475,11 +2464,10 @@ class _Lamb(torch.optim.Optimizer):
         return loss
 
 
-
-class Lamb(Craft):
+class Lamb(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
-        super(Lamb, self).__init__(scope)
+        super(Lamb, self).__init__(lr, lr_decay, warmup, scope)
         if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
@@ -2509,13 +2497,3 @@ class Lamb(Craft):
             self.lr_decay = lr_decay(self.optz)
             if warmup>0:
                 self.lr_decay = WarmUpWrapper(warmup, self.lr_decay)
-
-    def run(self, target):
-        self.optz.zero_grad()
-        target.backward()
-        self.cnt += 1
-        if self.cnt == self.grad_accum:
-            self.cnt = 0
-            self.optz.step()
-            if self.lr_decay is not None:
-                self.lr_decay.step()
