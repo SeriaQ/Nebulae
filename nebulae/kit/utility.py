@@ -568,6 +568,12 @@ class GPUtil():
             for line in p.stdout.readlines():
                 self.gpus.append(line.decode('utf-8').strip())
 
+    def __del__(self):
+        if hasattr(self, 'file'):
+            self.file.close()
+            if os.path.exists('./temp_gpu_stat.csv'):
+                os.remove('./temp_gpu_stat.csv')
+    
     def _stamp2secs(self, t):
         date, time = t.split(' ')
         h, m, s = time.split(':')

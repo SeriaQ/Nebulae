@@ -24,6 +24,7 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 import os
 from math import ceil, sqrt
+from collections.abc import Iterator
 from functools import partial
 import torch
 import torch.nn as nn
@@ -1647,30 +1648,30 @@ class GN(Craft):
 class SN(Craft):
     def __init__(self, craft, niters=3, eps=1e-12, pname='weight', scope='SN'):
         super(SN, self).__init__(scope)
-        if isinstance(craft, (Conv, TransConv)):
-            self.key = 'conv/'
-            self.hull = craft[self.key]
-        elif isinstance(craft, Dense):
-            self.key = 'fc/'
-            self.hull = craft[self.key]
-        elif isinstance(craft, Embed):
-            self.key = 'embd/'
-            self.hull = craft[self.key]
-        elif isinstance(craft, (BN, IN, LN)):
-            self.key = 'norm/'
-            self.hull = craft[self.key]
-        elif isinstance(craft, (CBN, CIN)):
-            self.key = ''
-            self.hull = craft[self.key]
-        elif isinstance(craft, nn.Module):
-            self.hull = craft
-        else:
-            raise Exception('NEBULAE ERROR ⨷ SN does not support %s layer.' % type(craft))
         self.craft = craft
         self.niters = niters
         self.eps = eps
         self.pname = pname
-        self.hull = nn.utils.spectral_norm(self.hull, self.pname, self.niters, self.eps)
+        if isinstance(craft, (Conv, TransConv)):
+            # self.hull = craft.conv
+            self.craft.conv = nn.utils.spectral_norm(self.craft.conv, self.pname, self.niters, self.eps)
+        elif isinstance(craft, Dense):
+            # self.hull = craft.fc
+            self.craft.fc = nn.utils.spectral_norm(self.craft.fc, self.pname, self.niters, self.eps)
+        elif isinstance(craft, Embed):
+            # self.hull = craft.embd
+            self.craft.embd = nn.utils.spectral_norm(self.craft.embd, self.pname, self.niters, self.eps)
+        elif isinstance(craft, (BN, IN, LN)):
+            # self.hull = craft.norm
+            self.craft.norm = nn.utils.spectral_norm(self.craft.norm, self.pname, self.niters, self.eps)
+        elif isinstance(craft, (CBN, CIN)):
+            # self.hull = craft
+            self.craft = nn.utils.spectral_norm(self.craft, self.pname, self.niters, self.eps)
+        elif isinstance(craft, nn.Module):
+            # self.hull = craft
+            self.craft = nn.utils.spectral_norm(self.craft, self.pname, self.niters, self.eps)
+        else:
+            raise Exception('NEBULAE ERROR ⨷ SN does not support %s layer.' % type(craft))
 
     '''
         self.hull = craft[self.key]
@@ -1723,7 +1724,7 @@ class MAE(Craft):
 
 
 class MSE(Craft):
-    def __init__(self, scope='MAE'):
+    def __init__(self, scope='MSE'):
         super(MSE, self).__init__(scope)
         self.cost = nn.MSELoss()
 
@@ -2053,7 +2054,8 @@ except ImportError:
 
 
 class OptzABC(Craft):
-    def __init__(self, lr, lr_decay, warmup, scope):
+    def __init__(self, hull, lr, lr_decay, warmup, 
+                    grad_limit, grad_accum, update_scope, scope):
         super(OptzABC, self).__init__(scope)
         self.lr_base = lr
         self.__lr = []
@@ -2062,6 +2064,29 @@ class OptzABC(Craft):
             self.mode = 1
         elif lr_decay is not None:
             self.mode = 2
+
+        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+            hull = hull._orig_mod
+        # select parameters await updating
+        if update_scope is None:
+            if hasattr(hull, 'vars'):
+                update_var = hull.vars()
+            else:
+                update_var = hull.parameters()
+        else:
+            if isinstance(update_scope, str):
+                update_scope = [update_scope]
+            update_var = []
+            for us in update_scope:
+                paths = us.split('/')
+                craft = hull
+                for p in paths:
+                    craft = getattr(craft, p)
+                update_var.append(craft.vars())
+        self.update_var = update_var
+        self.grad_accum = grad_accum
+        self.grad_limit = grad_limit
+        self.cnt = 0
 
     @property
     def lr(self):
@@ -2082,6 +2107,8 @@ class OptzABC(Craft):
     def run(self, target):
         self.optz.zero_grad()
         target.backward()
+        if self.grad_limit > 0:
+            nn.utils.clip_grad_value_(self.update_var, self.grad_limit)
         self.cnt += 1
         if self.cnt == self.grad_accum:
             self.cnt = 0
@@ -2094,28 +2121,9 @@ class OptzABC(Craft):
 class Momentum(OptzABC):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='MOMENTUM'):
-        super(Momentum, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit>0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = torch.optim.SGD(update_var, lr=lr, momentum=mmnt, weight_decay=wd)
+        super(Momentum, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = torch.optim.SGD(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2130,28 +2138,9 @@ class Momentum(OptzABC):
 class Nesterov(OptzABC):
     def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='NESTEROV'):
-        super(Nesterov, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = torch.optim.SGD(update_var, lr=lr, momentum=mmnt, weight_decay=wd, nesterov=True)
+        super(Nesterov, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = torch.optim.SGD(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd, nesterov=True)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2166,28 +2155,9 @@ class Nesterov(OptzABC):
 class RMSProp(OptzABC):
     def __init__(self, hull, lr, mmnt=0., wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='RMSPROP'):
-        super(RMSProp, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = torch.optim.RMSprop(update_var, lr=lr, momentum=mmnt, weight_decay=wd)
+        super(RMSProp, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = torch.optim.RMSprop(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2202,28 +2172,9 @@ class RMSProp(OptzABC):
 class Adam(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAM'):
-        super(Adam, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = torch.optim.Adam(update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
+        super(Adam, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = torch.optim.Adam(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2238,28 +2189,9 @@ class Adam(OptzABC):
 class AdamW(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAMW'):
-        super(AdamW, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = torch.optim.AdamW(update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
+        super(AdamW, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = torch.optim.AdamW(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2335,28 +2267,9 @@ class _Lion(torch.optim.Optimizer):
 class Lion(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.99, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
-        super(Lion, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = _Lion(update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
+        super(Lion, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = _Lion(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:
@@ -2467,28 +2380,9 @@ class _Lamb(torch.optim.Optimizer):
 class Lamb(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
                  grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
-        super(Lamb, self).__init__(lr, lr_decay, warmup, scope)
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
-            hull = hull._orig_mod
-        # select parameters await updating
-        if update_scope is None:
-            update_var = hull.vars()
-        else:
-            if isinstance(update_scope, str):
-                update_scope = [update_scope]
-            update_var = []
-            for us in update_scope:
-                paths = us.split('/')
-                craft = hull
-                for p in paths:
-                    craft = getattr(craft, p)
-                update_var.append(craft.vars())
-
-        self.grad_accum = grad_accum
-        self.cnt = 0
-        if grad_limit > 0:
-            nn.utils.clip_grad_value_(update_var, grad_limit)
-        self.optz = _Lamb(update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
+        super(Lamb, self).__init__(hull, lr, lr_decay, warmup, 
+                                grad_limit, grad_accum, update_scope, scope)
+        self.optz = _Lamb(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
             if warmup>0:

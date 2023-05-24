@@ -41,7 +41,6 @@ from time import time
 
 
 def launch(cfg, mv=None):
-    kit.destine(121)
     ISIZE = cfg['hyper']['img_size']
     BSIZE = cfg['hyper']['batch_size']
     NEPOCH = cfg['hyper']['nepoch']
@@ -56,6 +55,8 @@ def launch(cfg, mv=None):
     DROOT = cfg['env']['data_root']
     NGPU = cfg['env']['ngpu']
     DP = cfg['env']['parallel']
+
+    kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:

@@ -37,7 +37,7 @@ from ..law import Constant
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
-    def __init__(self, log_dir='./aerolog', window=1, divisor=10, span=30, format=None):
+    def __init__(self, log_dir='./aerolog', window=1, divisor=12, span=60, format=None):
         '''
         :param config:
         :param window: the window length of moving average
