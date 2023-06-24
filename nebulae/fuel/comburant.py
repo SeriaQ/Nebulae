@@ -315,7 +315,7 @@ class Resize(ABC):
         self.interp = interp
 
     def _resize_np(self, img, w, h):
-        return cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)#CV_INTER[self.interp])
+        return cv2.resize(img, (w, h), interpolation=CV_INTER[self.interp])
 
     def _resize_pil(self, img, w, h):
         return img.resize((w, h), PIL_INTERP[self.interp])

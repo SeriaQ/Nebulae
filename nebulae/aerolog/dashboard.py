@@ -133,6 +133,8 @@ class DashBoard(object):
             if stage not in self.trail_mile.keys():
                 self.trail_mile[stage] = []
                 self.trail_epoch[stage] = []
+            if value.dtype == np.float16:
+                value = value.astype(np.float32)
             self.win_mile[name][(global_mile - 1) % self.window] = value
             if mile == 1: # the start of an epoch
                 self.gauge_epoch[name].append(value)
