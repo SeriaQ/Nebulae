@@ -236,5 +236,5 @@ def launch(cfg, mv=None):
 
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
-    cfg = kit.parse_cfg('config_core.json')
+    cfg = kit.parse_cfg('config_core.yml')
     launch(cfg)

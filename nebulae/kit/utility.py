@@ -23,6 +23,7 @@ Email: zzqsummerai@yeah.net
 '''
 # -*- coding:utf-8 -*-
 import json
+import yaml
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -222,14 +223,26 @@ def rand_trunc_norm(mean, std, shape, cutoff_sigma=2):
 
 
 def parse_cfg(config_path):
-    with open(config_path, 'r') as config_file:
-        return json.load(config_file)
+    if config_path.endswith('yml'):
+        with open(config_path, 'r') as config_file:
+            config = yaml.safe_load(config_file)
+    elif config_path.endswith('json'):
+        with open(config_path, 'r') as config_file:
+            config = json.load(config_file)
+    return config
 
 def record_cfg(config_path, config, overwrite=True):
-    while not overwrite and os.path.exists(config_path):
-        config_path = config_path[:-5]+'_.json'
-    with open(config_path, 'w') as config_file:
-        json.dump(config, config_file, indent=4)
+    if config_path.endswith('yml'):
+        while not overwrite and os.path.exists(config_path):
+            config_path = config_path[:-5]+'_.yml'
+        with open(config_path, 'w') as config_file:
+            config_file.write(yaml.dump(config, allow_unicode=True, sort_keys=False))
+    elif config_path.endswith('json'):
+        while not overwrite and os.path.exists(config_path):
+            config_path = config_path[:-5]+'_.json'
+        with open(config_path, 'w') as config_file:
+            json.dump(config, config_file, indent=4)
+
 
 def _merge_fuel(src_dir, src, dst, dtype, keep_src=True):
     data = {}

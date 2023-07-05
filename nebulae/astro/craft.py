@@ -36,23 +36,39 @@ from ..law import Constant
 
 __all__ = ('Craft',
            'Rudder', 'Prober', 'Nozzle',
+           
            'FP16', 'INT16', 'INT8',
            'NEAREST', 'LINEAR', 'CUBIC', 'AREA',
-           'CONSTANT', 'REFLECT', 'REPLICATE',
+           'CONSTANT', 'REFLECT', 'BORDER',
+
            'Void', 'XavierNorm', 'XavierUnif', 'Normal', 'Uniform', 'Orthog', 'Zeros', 'Ones',
            'Conv', 'TransConv', 'GraphConvEig', 'GraphConvLap', 'GraphConvAdj', 'Dense', 'Embed', 'Pad', 'Identity',
+
            'RNN', 'BiRNN', 'LSTM', 'BiLSTM', 'MHAttn',
+
            'Mean', 'Max', 'Min', 'Argmax', 'Argmin', 'Maxele', 'Minele', 'Sum', 'Dot', 'Scatter', 'Gather', 'Grad',
+
            'QR', 'Eigen', 'MaxEigen', 'FFT', 'IFFT',
-           'Roll', 'Reshape', 'Permute', 'Expand', 'Squash', 'Tile', 'Zoom', 'SubPix', 'SurPix', 'MaxPool', 'AvgPool',
+
+           'Roll', 'Reshape', 'Permute', 'Expand', 'Squash', 'Tile', 'Zoom', 'SubPix', 'SurPix', 'GridSample', 'Warp', 
+           'MaxPool', 'AvgPool',
+
            'EMA', 'Retroact',
+
            'Sqrt', 'Exp', 'Log', 'Sin', 'Cos',
+
            'Concat', 'Stack',
+
            'D2S', 'S2D', 'SpDot',
+
            'Clip', 'Dropout', 'BN', 'CBN', 'IN', 'CIN', 'LN', 'GN', 'SN',
+
            'Relu', 'LRelu', 'PRelu', 'Gelu', 'Tanh', 'Sigm', 'Sftm', 'Sftp',
+
            'MAE', 'MSE', 'Huber', 'Charbon', 'SigmXE', 'SftmXE', 'OHEM',
+
            'AccCls', 'PSNR', 'SSIM',
+
            'StepLR', 'PolyLR', 'CosLR', 'ExpLR', 'WavyLR',
            'Momentum', 'Nesterov', 'RMSProp', 'Adam', 'AdamW', 'Lion', 'Lamb')
 
@@ -65,11 +81,13 @@ AREA = 3
 PT_INTERP = ({NEAREST: 'nearest', LINEAR: 'linear', AREA: 'area'},
              {LINEAR: 'bilinear', CUBIC: 'bicubic', AREA: 'area'},
              {LINEAR: 'trilinear', AREA: 'area'})
+SAMPLE_INTERP = {NEAREST: 'nearest', LINEAR: 'bilinear', CUBIC: 'bicubic'}
 
 CONSTANT = 10
 REFLECT = 11
-REPLICATE = 12
-PT_PAD = {CONSTANT: 'constant', REFLECT: 'reflect', REPLICATE: 'replicate'}
+BORDER = 12
+PT_PAD = {CONSTANT: 'constant', REFLECT: 'reflect', BORDER: 'replicate'}
+SAMPLE_PAD = {CONSTANT: 'zeros', REFLECT: 'reflection', BORDER: 'border'}
 
 FREE = 20
 DYNAMIC = 21
@@ -1299,6 +1317,42 @@ class SurPix(Craft):
 
 
 
+class GridSample(Craft):
+    def __init__(self, interp=LINEAR, aligned=True, pad_mode=CONSTANT, scope='GRIDSAMPLE'):
+        super(GridSample, self).__init__(scope)
+        self.interp = SAMPLE_INTERP[interp]
+        self.aligned = aligned
+        self.pad_mode = SAMPLE_PAD[pad_mode]
+
+    def run(self, x, grid):
+        y = F.grid_sample(x, grid, mode=self.interp, padding_mode=self.pad_mode, align_corners=self.aligned)
+        return y
+
+
+
+class Warp(Craft):
+    def __init__(self, interp=LINEAR, aligned=True, pad_mode=CONSTANT, scope='WARP'):
+        super(Warp, self).__init__(scope)
+        self.interp = SAMPLE_INTERP[interp]
+        self.aligned = aligned
+        self.pad_mode = SAMPLE_PAD[pad_mode]
+
+    def run(self, x, flow):
+        B, C, H, W = x.shape
+        grid_x, grid_y = torch.meshgrid(torch.arange(0, W), torch.arange(0, H), indexing='ij')
+        grid_x = grid_x.view(1, H, W, 1).repeat(B, 1, 1, 1)
+        grid_y = grid_y.view(1, H, W, 1).repeat(B, 1, 1, 1)
+        grid = torch.cat((grid_x, grid_y), -1).to(flow.dtype)
+        grid.requires_grad = False
+
+        grid += flow.permute(0, 2, 3, 1)
+        grid[:, :, :, 0] = 2.0 * grid[:, :, :, 0] / max(W - 1, 1) - 1.0
+        grid[:, :, :, 1] = 2.0 * grid[:, :, :, 1] / max(H - 1, 1) - 1.0
+        y = F.grid_sample(x, grid, mode=self.interp, padding_mode=self.pad_mode, align_corners=self.aligned)
+        return y
+
+
+
 class MaxPool(Craft):
     def __init__(self, kernel: tuple, stride=2, padding=0, scope='MPOOL'):
         super(MaxPool, self).__init__(scope)
@@ -2067,8 +2121,8 @@ except ImportError:
 
 
 class OptzABC(Craft):
-    def __init__(self, hull, lr, lr_decay, warmup, grad_limit, grad_accum, 
-                update_scope, mix_prec, scope):
+    def __init__(self, hull, lr, lr_decay, warmup, mixp,
+                grad_limit, grad_accum, update_scope, scope):
         super(OptzABC, self).__init__(scope)
         self.lr_base = lr
         self.__lr = []
@@ -2099,8 +2153,8 @@ class OptzABC(Craft):
         self.update_var = update_var
         self.grad_accum = grad_accum
         self.grad_limit = grad_limit
-        self.mix_prec = mix_prec
-        if mix_prec:
+        self.mixp = mixp
+        if mixp:
             self.scaler = torch.cuda.amp.GradScaler()
         self.cnt = 0
 
@@ -2122,7 +2176,7 @@ class OptzABC(Craft):
 
     def run(self, target):
         self.optz.zero_grad()
-        if self.mix_prec:
+        if self.mixp:
             self.scaler.scale(target).backward()
             self.cnt += 1
             if self.cnt == self.grad_accum:
@@ -2148,10 +2202,10 @@ class OptzABC(Craft):
 
 
 class Momentum(OptzABC):
-    def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='MOMENTUM'):
-        super(Momentum, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+    def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0, mixp=False,
+                 grad_limit=-1, grad_accum=1, update_scope=None, scope='MOMENTUM'):
+        super(Momentum, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = torch.optim.SGD(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
@@ -2165,10 +2219,10 @@ class Momentum(OptzABC):
 
 
 class Nesterov(OptzABC):
-    def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='NESTEROV'):
-        super(Nesterov, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+    def __init__(self, hull, lr, mmnt=0.9, wd=0, lr_decay=None, warmup=0, mixp=False,
+                 grad_limit=-1, grad_accum=1, update_scope=None, scope='NESTEROV'):
+        super(Nesterov, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = torch.optim.SGD(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd, nesterov=True)
         if lr_decay is None:
             self.lr_decay = None
@@ -2182,10 +2236,10 @@ class Nesterov(OptzABC):
 
 
 class RMSProp(OptzABC):
-    def __init__(self, hull, lr, mmnt=0., wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='RMSPROP'):
-        super(RMSProp, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+    def __init__(self, hull, lr, mmnt=0., wd=0, lr_decay=None, warmup=0, mixp=False,
+                 grad_limit=-1, grad_accum=1, update_scope=None, scope='RMSPROP'):
+        super(RMSProp, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = torch.optim.RMSprop(self.update_var, lr=lr, momentum=mmnt, weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
@@ -2200,9 +2254,9 @@ class RMSProp(OptzABC):
 
 class Adam(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='ADAM'):
-        super(Adam, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+                 mixp=False, grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAM'):
+        super(Adam, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = torch.optim.Adam(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
@@ -2217,9 +2271,9 @@ class Adam(OptzABC):
 
 class AdamW(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='ADAMW'):
-        super(AdamW, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+                 mixp=False, grad_limit=-1, grad_accum=1, update_scope=None, scope='ADAMW'):
+        super(AdamW, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = torch.optim.AdamW(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
@@ -2295,9 +2349,9 @@ class _Lion(torch.optim.Optimizer):
 
 class Lion(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.99, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='LION'):
-        super(Lion, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+                 mixp=False, grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
+        super(Lion, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = _Lion(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
@@ -2408,9 +2462,9 @@ class _Lamb(torch.optim.Optimizer):
 
 class Lamb(OptzABC):
     def __init__(self, hull, lr, mmnt1=0.9, mmnt2=0.999, wd=0, lr_decay=None, warmup=0,
-                 grad_limit=-1, grad_accum=1, update_scope=None, mix_prec=False, scope='LION'):
-        super(Lamb, self).__init__(hull, lr, lr_decay, warmup, 
-                                grad_limit, grad_accum, update_scope, mix_prec, scope)
+                 mixp=False, grad_limit=-1, grad_accum=1, update_scope=None, scope='LION'):
+        super(Lamb, self).__init__(hull, lr, lr_decay, warmup, mixp,
+                                grad_limit, grad_accum, update_scope, scope)
         self.optz = _Lamb(self.update_var, lr=lr, betas=(mmnt1, mmnt2), weight_decay=wd)
         if lr_decay is None:
             self.lr_decay = None
