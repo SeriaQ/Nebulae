@@ -143,7 +143,12 @@ class Craft(nn.Module):
                 return self.run(*args, **kwargs)
 
     def lowp(self, prec=FP16):
-        assert prec in (FP16, INT16, INT8), 'NEBULAE ERROR ⨷ %s is not a valid type of tensors.' % prec
+        assert prec in (FP16, ), 'NEBULAE ERROR ⨷ %s is not a valid type of tensors.' % prec
+        self.__prec = prec
+        self.half()
+
+    def mixp(self, prec=FP16):
+        assert prec in (FP16, ), 'NEBULAE ERROR ⨷ %s is not a valid type of tensors.' % prec
         self.__prec = prec
 
     def gear(self, gr):

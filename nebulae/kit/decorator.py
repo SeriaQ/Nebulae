@@ -22,7 +22,6 @@ Email: zzqsummerai@yeah.net
 '''
 # -*- coding:utf-8 -*-
 import cv2
-import os
 import time
 
 def Timer(func):

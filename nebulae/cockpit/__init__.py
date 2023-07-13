@@ -24,7 +24,7 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 from .engine import Engine, CPU, GPU, FREE, DYNAMIC, STATIC
 from .time_machine import TimeMachine
-from .multiverse import Multiverse
+from .multiverse import Multiverse, Universe
 
 
-__all__ = ('Engine', 'TimeMachine', 'Multiverse', 'CPU', 'GPU', 'FREE', 'DYNAMIC', 'STATIC')
+__all__ = ('Engine', 'TimeMachine', 'Multiverse', 'Universe', 'CPU', 'GPU', 'FREE', 'DYNAMIC', 'STATIC')

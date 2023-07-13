@@ -107,7 +107,6 @@ else:
             raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
 
 
-# DDP = parallel.DistributedDataParallel
 
 class Multiverse(object):
     '''
@@ -132,11 +131,18 @@ class Multiverse(object):
     def __call__(self, *args, **kwargs):
         # mp.set_start_method('spawn')
         ps = []
-        kwargs['mv'] = self
+        def servo(*args, **kwargs):
+            def _get_univ():
+                self.init()
+                return self
+            from .. import cockpit
+            cockpit.Universe = _get_univ
+            return self.universe(*args, **kwargs)
         for r in range(self.nworld):
             self.env[Constant.ENV_RANK] = str(r)
             self.env['LOCAL_RANK'] = str(r)
-            p = mp.Process(target=self.universe, args=args, kwargs=kwargs)
+            # p = mp.Process(target=self.universe, args=args, kwargs=kwargs)
+            p = mp.Process(target=servo, args=args, kwargs=kwargs)
             p.start()
             ps.append(p)
         for p in ps:
@@ -144,8 +150,7 @@ class Multiverse(object):
 
         # mp.spawn(self.universe, args=(self,)+args, nprocs=self.nworld)
 
-    def init(self):#, rank):
-        # os.environ[Constant.ENV_RANK] = str(rank)
+    def init(self):
         for k, v in self.env.items():
             os.environ[k] = v
         self.rank = int(os.environ[Constant.ENV_RANK])
@@ -188,3 +193,18 @@ class Multiverse(object):
         for t in tensors:
             reduced_ts.append(self._reduce(t))
         return tuple(reduced_ts)
+
+
+
+class Universe(object):
+    def __init__(self):
+        pass
+
+    def init(self):
+        pass
+
+    def sync(self, models):
+        return models
+
+    def reduce(self, tensors, aggregate=False):
+        return tensors

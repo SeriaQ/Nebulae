@@ -1,7 +1,7 @@
 hyper:
     img_size: 32
     batch_size: 256
-    nepoch: 5
+    nepoch: 1
     lr: 3.0e-3
     wd: 0
     decay_step: 800
@@ -14,4 +14,8 @@ env:
     log_root: "/root/proj/logs"
     data_root: "/root/proj/data"
     ngpu: 2
-    parallel: true
+    # training mode
+    # sg: single gpu
+    # dp: data parallel
+    # dt: distributed training
+    train_mode: "dp"

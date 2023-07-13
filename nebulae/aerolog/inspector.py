@@ -151,6 +151,7 @@ class Inspector(object):
         if ver2num(torch.__version__) >= ver2num('2.0') and isinstance(archit, torch._dynamo.OptimizedModule):
             archit = archit._orig_mod
 
+        archit.eval()
         nbytes = {torch.int8: 1, torch.int64: 8, torch.float16: 2, torch.float32: 4, torch.float64: 8}
         parambytes = sum([p.numel() for p in archit.vars()])
         if parambytes<1024:
