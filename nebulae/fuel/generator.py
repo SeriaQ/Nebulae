@@ -30,7 +30,7 @@ import numpy as np
 from piexif import remove as rm_exif
 
 from ..kit.decorator import Timer
-from ..law import Constant
+from ..rule import FRAME_KEY, FIELD_SEP, CHAR_SEP, VALID_DTYPE
 
 __all__ = ('Generator', 'NA', 'FAST', 'GOOD', 'OPTIM', 'LOSSLESS')
 
@@ -64,7 +64,7 @@ class Generator(object):
         if self.param['file_list'].split('.')[-1] != 'csv':
             raise Exception('NEBULAE ERROR ⨷ file list should be a csv file.')
         for dt in self.param['dtype']:
-            if dt.strip('v') not in Constant.VALID_DTYPE:
+            if dt.strip('v') not in VALID_DTYPE:
                 raise Exception('NEBULAE ERROR ⨷ %s is not a valid data type.' % dt)
 
     def _compress(self, img_path, height, width, channel, quality, keep_exif):
@@ -125,7 +125,7 @@ class Generator(object):
             else:
                 hdf5[key] = data[key].astype(dt)
         if self.param['is_seq']:
-            hdf5[Constant.FRAME_KEY] = max_frames
+            hdf5[FRAME_KEY] = max_frames
         hdf5.close()
 
     @Timer
@@ -139,7 +139,7 @@ class Generator(object):
         else:
             patch = 0
         with open(os.path.join(self.param['file_dir'], self.param['file_list']), 'r') as filelist:
-            content = csv.reader(filelist, delimiter=Constant.CHAR_SEP, quotechar=Constant.FIELD_SEP)
+            content = csv.reader(filelist, delimiter=CHAR_SEP, quotechar=FIELD_SEP)
             ending_char = '\r'
             for l, line in enumerate(content):
                 # display progress bar
@@ -161,7 +161,7 @@ class Generator(object):
                     for k, key in enumerate(info_keys):
                         if k == 0 and quality > 0: # dealing with raw data
                             if self.param['is_seq']:
-                                csl = line[k].split(Constant.CHAR_SEP) # comma separated line
+                                csl = line[k].split(CHAR_SEP) # comma separated line
                                 max_frames = len(csl) if len(csl) > max_frames else max_frames
                                 temp_data = []
                                 for f in csl:
@@ -172,7 +172,7 @@ class Generator(object):
                                 data[key].append(self._compress(os.path.join(self.param['file_dir'], line[k]),
                                                                 height, width, channel, quality, keep_exif))
                         else:
-                            csl = line[k].split(Constant.CHAR_SEP) # comma separated line
+                            csl = line[k].split(CHAR_SEP) # comma separated line
                             if len(csl) == 1 and not self.param['dtype'][k].startswith('v'):
                                 data[key].append(line[k])
                             else:

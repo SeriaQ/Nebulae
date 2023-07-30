@@ -25,7 +25,7 @@ Email: zzqsummerai@yeah.net
 import torch
 import os
 from glob import glob
-from ..law import Constant
+from ..rule import ENV_RANK
 
 
 
@@ -34,7 +34,7 @@ class TimeMachine(object):
         '''
         Time Machine saves current states or restores saved states
         '''
-        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        self.rank = int(os.environ.get(ENV_RANK, -1))
         self.ckpt_dir = ckpt_dir
         self.save_dir = save_dir
         os.makedirs(ckpt_dir, exist_ok=True)

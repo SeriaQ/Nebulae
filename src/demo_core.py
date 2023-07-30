@@ -29,8 +29,7 @@ with different backend cores. Training and validation are included as well.
 
 import os
 import nebulae as neb
-from nebulae import kit, fuel
-from nebulae.astro import dock, fn
+from nebulae import *
 
 import numpy as np
 import cv2
@@ -56,19 +55,19 @@ def launch(cfg):
     NGPU = cfg['env']['ngpu']
     TMODE = cfg['env']['train_mode']
     
-    mv = neb.cockpit.Universe()
+    uv = cockpit.Universe()
     kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             cv2.imwrite('/root/proj/logs/ckpt/retro_%d_%d.png'%(epoch, mile), (value[:,:,0] * 255).astype(np.uint8))
-    db = neb.aerolog.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
+    db = logbook.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
                                window=15, divisor=15, span=70,
                                format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = neb.cockpit.Engine(device=neb.cockpit.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=neb.cockpit.STATIC)
-    tm = neb.cockpit.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
+    ng = cockpit.Engine(device=neb.cockpit.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=neb.cockpit.STATIC)
+    tm = cockpit.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
                                  ckpt_dir=os.path.join(DROOT, "ckpt"))
 
     # ---------------------------------- Fuel ------------------------------------ #
@@ -124,10 +123,10 @@ def launch(cfg):
                       batch_size=BSIZE, shuffle=False)
 
     # -------------------------------- Astro Dock --------------------------------- #
-    class Net(dock.Craft):
+    class Net(nad.Craft):
         def __init__(self, nclass, scope):
             super(Net, self).__init__(scope)
-            self.formulate(fn('res/in') >> fn('res/out'))
+            self.formulate(naf('res/in') >> naf('res/out'))
 
             # pad = dock.autopad((3, 3), 2)
             # self.conv = dock.Conv(3, 8, (3, 3), stride=2, padding=pad, b_init=dock.Void())
@@ -136,8 +135,8 @@ def launch(cfg):
             # self.mpool = dock.MaxPool((2, 2), padding=pad)
 
             self.res = neb.astro.hangar.Resnet_V2_152((ISIZE, ISIZE, 3))
-            self.flat = dock.Reshape()
-            self.fc = dock.Dense(2048, nclass) # 512 2048
+            self.flat = nad.Reshape()
+            self.fc = nad.Dense(2048, nclass) # 512 2048
 
         def run(self, x):
             self['in'] = x
@@ -151,56 +150,56 @@ def launch(cfg):
 
             return y, f
 
-    class Train(dock.Craft):
+    class Train(nad.Craft):
         def __init__(self, net, scope='TRAIN'):
             super(Train, self).__init__(scope)
             self.net = net
-            self.loss = dock.SftmXE(is_one_hot=False)
-            self.acc = dock.AccCls(multi_class=False, is_one_hot=False)
-            self.optz = dock.Adam(self.net, LR, wd=WD, lr_decay=dock.StepLR(DSTEP, DRATE), warmup=WARM, mixp=True)
+            self.loss = nad.SftmXE(is_one_hot=False)
+            self.acc = nad.AccCls(multi_class=False, is_one_hot=False)
+            self.optz = nad.Adam(self.net, LR, wd=WD, lr_decay=nad.StepLR(DSTEP, DRATE), warmup=WARM, mixp=True)
 
         @kit.Timer
         def run(self, x, z):
             self.net.off()
-            with dock.Rudder() as rud:
+            with nad.Rudder() as rud:
                 self.net.gear(rud)
                 y, _ = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
-                loss, acc = mv.reduce((loss, acc))
+                loss, acc = uv.reduce((loss, acc))
                 self.optz(loss)
             self.net.update()
             return loss, acc
 
-    class Dev(dock.Craft):
+    class Dev(nad.Craft):
         def __init__(self, net, scope='DEVELOP'):
             super(Dev, self).__init__(scope)
             self.net = net
-            self.loss = dock.SftmXE(is_one_hot=False)
-            self.acc = dock.AccCls(multi_class=False, is_one_hot=False)
-            # self.retro = dock.Retroact()
+            self.loss = nad.SftmXE(is_one_hot=False)
+            self.acc = nad.AccCls(multi_class=False, is_one_hot=False)
+            # self.retro = nad.Retroact()
 
         @kit.Timer
         def run(self, x, z):
             self.net.on()
-            with dock.Nozzle() as noz:
+            with nad.Nozzle() as noz:
                 self.net.gear(noz)
                 y, f = self.net(x)
                 loss = self.loss(y, z)
                 acc = self.acc(y, z)
-                loss, acc = mv.reduce((loss, acc))
+                loss, acc = uv.reduce((loss, acc))
             return loss, acc#, m
 
     # --------------------------------- Inspect --------------------------------- #
     net = Net(10, 'cnn')
     net.mixp()
-    net = dock.EMA(net, on_device=True)
+    net = nad.EMA(net, on_device=True)
     net = net.gear(ng)
-    net = mv.sync(net)
+    net = uv.sync(net)
     train = Train(net)
     dev = Dev(net)
-    sp = neb.aerolog.Inspector(export_path=os.path.join(LROOT, 'ckpt/res50'), verbose=True, onnx_ver=9)
-    dummy_x = dock.coat(np.random.rand(1, 3, ISIZE, ISIZE).astype(np.float32))
+    sp = neb.logbook.Inspector(export_path=os.path.join(LROOT, 'ckpt/res50'), verbose=True, onnx_ver=9)
+    dummy_x = nad.coat(np.random.rand(1, 3, ISIZE, ISIZE).astype(np.float32))
     sp.dissect(net, dummy_x)
     sp.paint(net, dummy_x)
 
@@ -213,24 +212,24 @@ def launch(cfg):
         mpe = dp.MPE[tkt]
         for mile in range(mpe):
             batch = dp.next(tkt)
-            img, label = dock.coat(batch['image']), dock.coat(batch['label'])
+            img, label = nad.coat(batch['image']), nad.coat(batch['label'])
             duration, loss, acc = train(img, label)
-            loss = dock.shell(loss)
-            acc = dock.shell(acc)
+            loss = nad.shell(loss)
+            acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss':loss}
-            db.gauge(probe, mile, epoch, mpe, 'TRAIN', interval=2, duration=duration, \
+            db(probe, mile, epoch, mpe, 'TRAIN', interval=2, \
                         is_global=True, is_elastic=True, in_loop=(0, 1), last_for=16)
 
         mpe = dp.MPE[tkd]
         for mile in range(mpe):
             batch = dp.next(tkd)
             # idx = int(dock.shell(batch['label'])[0])
-            img, label = dock.coat(batch['image']), dock.coat(batch['label'])
+            img, label = nad.coat(batch['image']), nad.coat(batch['label'])
             duration, loss, acc = dev(img, label)
-            loss = dock.shell(loss)
-            acc = dock.shell(acc)
+            loss = nad.shell(loss)
+            acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss': loss}#, 'Img': fm}
-            db.gauge(probe, mile, epoch, mpe, 'DEV', interval=2, duration=duration)
+            db(probe, mile, epoch, mpe, 'DEV', interval=2, )#duration=duration)
         curr = db.read('Acc', 'DEV')
         if curr > best:
             tm.drop(net, train.optz)

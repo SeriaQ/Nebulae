@@ -36,7 +36,7 @@ from math import ceil
 from time import sleep
 from PIL import Image
 import cv2
-from ..law import Constant
+from ..rule import ENV_RANK, FRAME_KEY, CHAR_SEP
 
 
 
@@ -176,7 +176,7 @@ def hotvec2mtx(labels, nclasses, on_value=1, off_value=0):
     indices = []
     if isinstance(labels[0], str):
         for b in range(batch_size):
-            indices += [int(s) + b * nclasses for s in labels[b].split(Constant.CHAR_SEP)]
+            indices += [int(s) + b * nclasses for s in labels[b].split(CHAR_SEP)]
     elif isinstance(labels[0], (list, np.ndarray)): # labels is a nested array
         for b in range(batch_size):
             indices += [l + b * nclasses for l in labels[b]]
@@ -257,12 +257,12 @@ def _merge_fuel(src_dir, src, dst, dtype, keep_src=True):
             for key in hdf5.keys():
                 info_keys.append(key)
             for key in info_keys:
-                if key == Constant.FRAME_KEY:
+                if key == FRAME_KEY:
                     data[key] = 0
                 else:
                     data[key] = []
         for key in info_keys:
-            if key == Constant.FRAME_KEY:
+            if key == FRAME_KEY:
                 frames = hdf5[key]
                 data[key] = frames if frames>data[key] else data[key]
             else:
@@ -284,7 +284,7 @@ def _merge_fuel(src_dir, src, dst, dtype, keep_src=True):
         if dtype[key].startswith('v'):  # dealing with encoded / varied data
             dt = h5py.special_dtype(vlen=dtype[key])
             hdf5.create_dataset(key, dtype=dt, data=np.array(data[key]))
-        elif key == Constant.FRAME_KEY:
+        elif key == FRAME_KEY:
             hdf5[key] = data[key]
         else:
             hdf5[key] = np.array(data[key]).astype(dtype[key])
@@ -572,7 +572,7 @@ def qr_Householder(A):
 
 class GPUtil():
     def __init__(self):
-        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        self.rank = int(os.environ.get(ENV_RANK, -1))
         self.process = None # the monitor process
         self.stat = 'No statistic for now.'
         self.gpus = [] # GPU names

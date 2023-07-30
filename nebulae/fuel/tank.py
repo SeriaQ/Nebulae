@@ -32,7 +32,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data._utils.collate import default_collate
 from torch import cuda
 
-from ..law import Constant
+from ..rule import ENV_RANK, CHAR_SEP, FIELD_SEP
 from ..kit.utility import ver2num
 
 __all__ = ('Tank', 'Depot', 'load_h5', 'load_csv')
@@ -53,7 +53,7 @@ def load_csv(data_path, data_specf):
     assert data_path.endswith('csv') or data_path.endswith('txt')
     tdata = {}
     with open(data_path, 'r') as csvf:
-        csvr = csv.reader(csvf, delimiter=Constant.CHAR_SEP, quotechar=Constant.FIELD_SEP)
+        csvr = csv.reader(csvf, delimiter=CHAR_SEP, quotechar=FIELD_SEP)
         for l, line in enumerate(csvr):
             if l == 0:
                 keys = line
@@ -92,7 +92,7 @@ class Tank(Dataset):
 
 class Depot(object):
     def __init__(self, engine):
-        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        self.rank = int(os.environ.get(ENV_RANK, -1))
         self.nworld = int(os.environ.get('WORLD_SIZE', 1))
         if hasattr(engine, 'chip'):
             if engine.multi_piston:

@@ -26,13 +26,19 @@ from ..astro import fn
 from ..kit import ver2num
 from ..astro.craft import DP
 from ..cockpit.multiverse import DDP
+from ..rule import ENV_RANK
 
-from graphviz import Digraph
 import os
 import sys
 import torch
 from ptflops.pytorch_engine import add_flops_counting_methods
-from ..law import Constant
+try:
+    from graphviz import Digraph
+    enable_painting = True
+except ImportError:
+    print('NEBULAE WARNING ◘ Network graph painting is disabled because of the lack of graphviz library.')
+    enable_painting = False
+
 
 class Inspector(object):
 
@@ -42,14 +48,17 @@ class Inspector(object):
         self.verbose = verbose
         self.hidden = hidden
         self.onnx_ver = onnx_ver
-        self.layout = Digraph(comment='The Space Craft', format='jpg')
-        self.layout.attr('node', shape='doublecircle')
+        if enable_painting:
+            self.layout = Digraph(comment='The Space Craft', format='jpg')
+            self.layout.attr('node', shape='doublecircle')
         self.seen = []
         self.displayed = [] # already printed on screen
         self.shapes = {}
 
     def paint(self, archit, *dummy_args, **dummy_kwargs):
-        rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        if not enable_painting:
+            return
+        rank = int(os.environ.get(ENV_RANK, -1))
         if rank > 0:
             return
 
@@ -142,7 +151,7 @@ class Inspector(object):
         return flops_count
 
     def dissect(self, archit, *dummy_args, **dummy_kwargs):
-        rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        rank = int(os.environ.get(ENV_RANK, -1))
         if rank > 0:
             return
         

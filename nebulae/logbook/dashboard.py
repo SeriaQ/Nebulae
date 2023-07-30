@@ -30,30 +30,39 @@ import time
 import pandas as pd
 import os
 from sys import stdout
-from ..law import Constant
+from collections.abc import Iterable
+from ..rule import ENV_RANK
 
 
 
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
-    def __init__(self, log_dir='./aerolog', window=1, divisor=12, span=60, format=None):
+    def __init__(self, log_dir='./logbook', window=1, divisor=12, span=60, format=None):
         '''
-        :param config:
         :param window: the window length of moving average
         :param format: a list of which the element is format and mode, e.g. ['3f', 'raw']
         '''
-        self.rank = int(os.environ.get(Constant.ENV_RANK, -1))
-        if not os.path.exists(log_dir):
-            os.mkdir(log_dir)
-        self.log_dir = log_dir
+        if isinstance(log_dir, str):
+            self.log_dir = log_dir
+        elif isinstance(log_dir, Iterable):
+            self.log_dir = '.'
+            self.iterable = log_dir.__iter__()
+            self.length = len(log_dir)
+            self.cnt = 0
+        else:
+            'NEBULAE ERROR ⨷ log_dir must be either a path string or an iterator.'
+        self.rank = int(os.environ.get(ENV_RANK, -1))
+        if not os.path.exists(self.log_dir):
+            os.mkdir(self.log_dir)
         self.window = window
         self.divisor = divisor
         self.span = span
         self.format = format
 
         self.max_epoch = 0
-        self.first_call = True # if it is the first call for self.gauge()
+        self.first_call = True # if it is the first call for self.__call__()
+        self.prev_time = -1
         self.win_mile = {}
         self.gauge_mile = {}
         self.gauge_epoch = {}
@@ -92,8 +101,19 @@ class DashBoard(object):
         else:
             raise KeyError('%s is an illegal format option.' % mode)
 
-    def gauge(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, plot=True, wipe=False, flush=0,
-              is_global=True, is_elastic=False, in_loop=(-1,), last_for=1):
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.cnt == self.length:
+            self.cnt = 0
+        else:
+            self({}, self.cnt, 0, self.length, 'ITER', plot=False)
+            self.cnt += 1
+        return self.iterable.__next__()
+    
+    def __call__(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, plot=True, wipe=False, flush=0,
+                is_global=True, is_elastic=False, in_loop=(-1,), last_for=1):
         if self.rank>0:
             return
         assert not (plot and wipe), 'NEBULAE ERROR ⨷ plot and wipe are mutually exclusive.'
@@ -191,7 +211,13 @@ class DashBoard(object):
             yellow_bar = progress * ' '
             space_bar = (20 - progress) * ' '
             if duration is None:
-                duration = '--:--'
+                if self.prev_time < 0:
+                    duration = '--:--'
+                    self.prev_time = time.time()
+                else:
+                    curr_time = time.time()
+                    duration = '%.3f'%(curr_time - self.prev_time)
+                    self.prev_time = curr_time
             else:
                 duration = '%.3f'%duration
             if wipe:
@@ -213,9 +239,13 @@ class DashBoard(object):
                 print(2 * w * ' ', end='\r')
                 stdout.flush()
             else:
-                for _ in range(self.divisor+flush+6):
+                if plot:
+                    vertical = self.divisor
+                else:
+                    vertical = -2
+                for _ in range(vertical+flush+6):
                     print(w * ' ')
-                print(f'\033[{self.divisor+flush+7}A')
+                print(f'\033[{vertical+flush+7}A')
             ordinal = self._getOridinal(epoch)
             mileage = str(epoch * mpe)
             display = '| %d%s Epoch ✇ %s Miles ︎⧲ %.2fs/epoch | %s |%s' \
@@ -333,16 +363,22 @@ class DashBoard(object):
 
 
 if __name__ == "__main__":
-    import random as rand
-    db = DashBoard(log_dir="/Users/Seria/Desktop/nebulae/test/ckpt",
-                    window=15, divisor=15, span=70,
-                    format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"], "MAE": [".3f", "raw"]})
-    for epoch in range(5):
-        for mile in range(10):
-            probe = {'Acc':rand.random(), 'Loss':rand.random()}
-            db.gauge(probe, mile, epoch, 10, 'TRAIN', interval=1, is_global=True)
-    
-        for mile in range(10):
-            probe = {'Acc':rand.random()}
-            db.gauge(probe, mile, epoch, 10, 'DEV', interval=1, is_global=True)
-    db.log()
+    mode = 'iter'
+    if mode == 'iter':
+        from time import sleep
+        for i in DashBoard(range(10)):
+            sleep(1)
+    elif mode == 'log':
+        import random as rand
+        db = DashBoard(log_dir="/Users/Seria/Desktop/nebulae/test/ckpt",
+                        window=15, divisor=15, span=70,
+                        format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"], "MAE": [".3f", "raw"]})
+        for epoch in range(5):
+            for mile in range(10):
+                probe = {'Acc':rand.random(), 'Loss':rand.random()}
+                db(probe, mile, epoch, 10, 'TRAIN', interval=1, is_global=True)
+        
+            for mile in range(10):
+                probe = {'Acc':rand.random()}
+                db(probe, mile, epoch, 10, 'DEV', interval=1, is_global=True)
+        db.log()

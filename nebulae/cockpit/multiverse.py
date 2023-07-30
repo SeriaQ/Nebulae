@@ -27,7 +27,7 @@ import os
 # import multiprocessing as mp
 import torch.multiprocessing as mp
 from ..kit.utility import ver2num
-from ..law import Constant
+from ..rule import ENV_RANK
 
 if ver2num(torch.__version__) >= ver2num('1.6.0'):
     is_new_version = True
@@ -139,7 +139,7 @@ class Multiverse(object):
             cockpit.Universe = _get_univ
             return self.universe(*args, **kwargs)
         for r in range(self.nworld):
-            self.env[Constant.ENV_RANK] = str(r)
+            self.env[ENV_RANK] = str(r)
             self.env['LOCAL_RANK'] = str(r)
             # p = mp.Process(target=self.universe, args=args, kwargs=kwargs)
             p = mp.Process(target=servo, args=args, kwargs=kwargs)
@@ -153,7 +153,7 @@ class Multiverse(object):
     def init(self):
         for k, v in self.env.items():
             os.environ[k] = v
-        self.rank = int(os.environ[Constant.ENV_RANK])
+        self.rank = int(os.environ[ENV_RANK])
         torch.distributed.init_process_group(backend="nccl", rank=self.rank, world_size=self.nworld)
 
     def _sync(self, model):

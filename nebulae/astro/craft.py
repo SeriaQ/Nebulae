@@ -32,7 +32,7 @@ import torch.nn.functional as F
 from ..cockpit.engine import Engine
 from ..cockpit import CPU, GPU
 from ..kit import ver2num
-from ..law import Constant
+from ..rule import ENV_RANK
 
 __all__ = ('Craft',
            'Rudder', 'Prober', 'Nozzle',
@@ -649,7 +649,7 @@ class EMA(Craft):
         self.counter = 0
         self.decay_fn = decay_fn
         self.on_device = on_device
-        self._rank = int(os.environ.get(Constant.ENV_RANK, -1))
+        self._rank = int(os.environ.get(ENV_RANK, -1))
         self['hull'] = hull
         self.swapped = False # whether have swapped to its shadow
 
