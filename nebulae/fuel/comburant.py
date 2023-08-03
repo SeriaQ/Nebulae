@@ -77,7 +77,7 @@ class Comburant(object):
         elif format == PIL:
             pass
         else:
-            raise Exception('NEBULAE ERROR ⨷ the image format is not defined or supported.')
+            raise Exception('NEBULAE ERROR ៙ the image format is not defined or supported.')
         self.format = format
         ls_args = list(args)
         for a in args:
@@ -167,7 +167,7 @@ class HW2CHW(ABC):
         if self._format == NUMPY:
             return np.expand_dims(img, 0)
         elif self._format == PIL:
-            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+            raise Exception('NEBULAE ERROR ៙ HW2CHW is not for PIL images.')
 
     def __call__(self, imgs):
         ret = self.exec(imgs)
@@ -183,7 +183,7 @@ class HWC2CHW(ABC):
         if self._format == NUMPY:
             return np.transpose(img, (2, 0, 1))
         elif self._format == PIL:
-            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+            raise Exception('NEBULAE ERROR ៙ HW2CHW is not for PIL images.')
 
     def __call__(self, imgs):
         ret = self.exec(imgs)
@@ -199,19 +199,19 @@ class Whiten(ABC):
         elif isinstance(mean, (float, int)):
             self.mean = float(mean)
         else:
-            raise Exception('NEBULAE ERROR ⨷ mean value must be a number or array.')
+            raise Exception('NEBULAE ERROR ៙ mean value must be a number or array.')
         if isinstance(std, (tuple, list)):
             self.std = np.array(std, dtype=np.float32)[np.newaxis, :, np.newaxis, np.newaxis]
         elif isinstance(std, (float, int)):
             self.std = float(std)
         else:
-            raise Exception('NEBULAE ERROR ⨷ std value must be a number or array.')
+            raise Exception('NEBULAE ERROR ៙ std value must be a number or array.')
 
     def call(self, img):
         if self._format == NUMPY:
             return (img - self.mean) / self.std
         elif self._format == PIL:
-            raise Exception('NEBULAE ERROR ⨷ HW2CHW is not for PIL images.')
+            raise Exception('NEBULAE ERROR ៙ HW2CHW is not for PIL images.')
 
     def __call__(self, imgs):
         ret = self.exec(imgs)
@@ -223,8 +223,8 @@ class Random(object):
     def __init__(self, p, comburant):
         super(Random, self).__init__()
         if isinstance(p, (tuple, list)):
-            assert len(p)==len(comburant), 'NEBULAE ERROR ⨷ the number of prob does not match with comburants.'
-            assert sum(p)==1, 'NEBULAE ERROR ⨷ the sum of probabilities must be 1.'
+            assert len(p)==len(comburant), 'NEBULAE ERROR ៙ the number of prob does not match with comburants.'
+            assert sum(p)==1, 'NEBULAE ERROR ៙ the sum of probabilities must be 1.'
         self.p = p
         self.cbr = comburant
 
@@ -254,7 +254,7 @@ def multiple(scales):
                 return x * s
         return lambda x: [_multiply(x, s) for s in scales]
     else:
-        raise TypeError('NEBULAE ERROR ⨷ non-iterable scales does not make sense.')
+        raise TypeError('NEBULAE ERROR ៙ non-iterable scales does not make sense.')
 
 
 
@@ -288,7 +288,7 @@ class Pad(ABC):
         elif img.ndim == 3:
             img = np.pad(img, ((padding[0], padding[1]), (padding[2], padding[3]), (0, 0)), constant_values=0.)
         else:
-            raise AssertionError('NEBULAE ERROR ⨷ the dimension of an image is either 2 or 3.')
+            raise AssertionError('NEBULAE ERROR ៙ the dimension of an image is either 2 or 3.')
         return img
 
     def _pad_pil(self, img, padding):
@@ -412,7 +412,7 @@ class Crop(ABC):
                 half = (h - height) // 2
                 img = np.pad(img, ((half, h - height - half), (0, 0), (0, 0)), constant_values=0.)
         else:
-            raise AssertionError('NEBULAE ERROR ⨷ the dimension of an image is either 2 or 3.')
+            raise AssertionError('NEBULAE ERROR ៙ the dimension of an image is either 2 or 3.')
 
         if self._reshape:
             cropped = cv2.resize(img[y:y + h, x:x + w], (size[1], size[0]), interpolation=CV_INTER[self.interp])
@@ -485,7 +485,7 @@ class Flip(ABC):
         elif self.axial == VERTICAL:
             dst = np.flip(img, 1)
         else:
-            raise Exception('NEBULAE ERROR ⨷ the invoked flip type is not defined or supported.')
+            raise Exception('NEBULAE ERROR ៙ the invoked flip type is not defined or supported.')
         return dst
 
     def _flip_pil(self, img):
@@ -494,7 +494,7 @@ class Flip(ABC):
         elif self.axial == VERTICAL:
             comburant = RandomHorizontalFlip(1)
         else:
-            raise Exception('NEBULAE ERROR ⨷ the invoked flip type is not defined or supported.')
+            raise Exception('NEBULAE ERROR ៙ the invoked flip type is not defined or supported.')
         return comburant(img)
 
     def call(self, img):
@@ -517,11 +517,11 @@ class Rotate(ABC):
         '''
         super(Rotate, self).__init__()
         if isinstance(degree, (tuple, list)):
-            assert degree[1] >= degree[0], 'NEBULAE ERROR ⨷ the second element should not be less than the first.'
+            assert degree[1] >= degree[0], 'NEBULAE ERROR ៙ the second element should not be less than the first.'
         elif isinstance(degree, (int, float)):
-            assert abs(degree) <= 360, 'NEBULAE ERROR ⨷ a valid degree should have its absolute value under 360.'
+            assert abs(degree) <= 360, 'NEBULAE ERROR ៙ a valid degree should have its absolute value under 360.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.degree = degree
         self.intact = intact
         self.interp = interp
@@ -576,11 +576,11 @@ class Brighten(ABC):
         super(Brighten, self).__init__()
         if isinstance(factor, (tuple, list)):
             assert factor[1] >= factor[0] and factor[0] >= 0, \
-                'NEBULAE ERROR ⨷ the second element should not be less than the first one and they are both non-negative.'
+                'NEBULAE ERROR ៙ the second element should not be less than the first one and they are both non-negative.'
         elif isinstance(factor, (int, float)):
-            assert factor >= 0, 'NEBULAE ERROR ⨷ a valid factor should be non-negative.'
+            assert factor >= 0, 'NEBULAE ERROR ៙ a valid factor should be non-negative.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.factor = factor
 
     def _brighten_np(self, img, factor):
@@ -612,11 +612,11 @@ class Contrast(ABC):
         super(Contrast, self).__init__()
         if isinstance(factor, (tuple, list)):
             assert factor[1] >= factor[0] and factor[0] >= 0, \
-                'NEBULAE ERROR ⨷ the second element should not be less than the first one and they are both non-negative.'
+                'NEBULAE ERROR ៙ the second element should not be less than the first one and they are both non-negative.'
         elif isinstance(factor, (int, float)):
-            assert factor >= 0, 'NEBULAE ERROR ⨷ a valid factor should be non-negative.'
+            assert factor >= 0, 'NEBULAE ERROR ៙ a valid factor should be non-negative.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.factor = factor
 
     def _contrast_np(self, img, factor):
@@ -652,11 +652,11 @@ class Saturate(ABC):
         super(Saturate, self).__init__()
         if isinstance(factor, (tuple, list)):
             assert factor[1] >= factor[0] and factor[0] >= 0, \
-                'NEBULAE ERROR ⨷ the second element should not be less than the first one and they are both non-negative.'
+                'NEBULAE ERROR ៙ the second element should not be less than the first one and they are both non-negative.'
         elif isinstance(factor, (int, float)):
-            assert factor >= 0, 'NEBULAE ERROR ⨷ a valid factor should be non-negative.'
+            assert factor >= 0, 'NEBULAE ERROR ៙ a valid factor should be non-negative.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.factor = factor
 
     def _saturate_np(self, img, factor):
@@ -693,12 +693,12 @@ class Hue(ABC):
         super(Hue, self).__init__()
         if isinstance(factor, (tuple, list)):
             assert factor[1] >= factor[0] and factor[0] >= -0.5 and factor[1] <= 0.5, \
-                'NEBULAE ERROR ⨷ the second element should not be less than the first one' \
+                'NEBULAE ERROR ៙ the second element should not be less than the first one' \
                 + ' and their absolute values are less than 0.5.'
         elif isinstance(factor, (int, float)):
-            assert abs(factor) <= 0.5, 'NEBULAE ERROR ⨷ a valid degree should have its absolute value under 0.5.'
+            assert abs(factor) <= 0.5, 'NEBULAE ERROR ៙ a valid degree should have its absolute value under 0.5.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.factor = factor
 
     def _hue_np(self, img, factor):
@@ -732,11 +732,11 @@ class Blur(ABC):
     def __init__(self, radius):
         super(Blur, self).__init__()
         if isinstance(radius, tuple):
-            assert radius[1] >= radius[0], 'NEBULAE ERROR ⨷ the second element should not be less than the first.'
+            assert radius[1] >= radius[0], 'NEBULAE ERROR ៙ the second element should not be less than the first.'
         elif isinstance(radius, int):
-            assert radius>=1, 'NEBULAE ERROR ⨷ a valid radius should be larger than one.'
+            assert radius>=1, 'NEBULAE ERROR ៙ a valid radius should be larger than one.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid radius should be an integer or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid radius should be an integer or a tuple.')
         self.radius = radius
 
     def _blur_np(self, img, radius):
@@ -765,11 +765,11 @@ class Sharpen(ABC):
     def __init__(self, factor):
         super(Sharpen, self).__init__()
         if isinstance(factor, tuple):
-            assert factor[1] >= factor[0], 'NEBULAE ERROR ⨷ the second element should not be less than the first.'
+            assert factor[1] >= factor[0], 'NEBULAE ERROR ៙ the second element should not be less than the first.'
         elif isinstance(factor, (int, float)):
-            assert factor>1, 'NEBULAE ERROR ⨷ a valid factor should be larger than one.'
+            assert factor>1, 'NEBULAE ERROR ៙ a valid factor should be larger than one.'
         else:
-            raise TypeError('NEBULAE ERROR ⨷ a valid factor should be an float or a tuple.')
+            raise TypeError('NEBULAE ERROR ៙ a valid factor should be an float or a tuple.')
         self.factor = factor
 
     def _sharpen_np(self, img, factor):
@@ -802,7 +802,7 @@ class Noise(ABC):
     def __init__(self, theta, distrib):
         super(Noise, self).__init__()
         self.theta = theta
-        assert distrib in (GAUSSIAN, POISSON), 'NEBULAE ERROR ⨷ the distribution is either to be Gaussian or Poisson.'
+        assert distrib in (GAUSSIAN, POISSON), 'NEBULAE ERROR ៙ the distribution is either to be Gaussian or Poisson.'
         self.distrib = distrib
 
     def _noise_np(self, img, theta):
@@ -903,12 +903,12 @@ class JPEG(ABC):
     def __init__(self, quality):
         super(JPEG, self).__init__()
         if isinstance(quality, tuple):
-            assert quality[1] >= quality[0], 'NEBULAE ERROR ⨷ the second element should not be less than the first.'
-            assert quality[0]>0 and quality[1]<100, 'NEBULAE ERROR ⨷ a valid quality should be an integer within [1, 99].'
+            assert quality[1] >= quality[0], 'NEBULAE ERROR ៙ the second element should not be less than the first.'
+            assert quality[0]>0 and quality[1]<100, 'NEBULAE ERROR ៙ a valid quality should be an integer within [1, 99].'
         elif isinstance(quality, int):
-            assert quality>0 and quality<100, 'NEBULAE ERROR ⨷ a valid quality should be an integer within [1, 99].'
+            assert quality>0 and quality<100, 'NEBULAE ERROR ៙ a valid quality should be an integer within [1, 99].'
         else:
-            raise ValueError('NEBULAE ERROR ⨷ a valid quality should be an integer or a tuple.')
+            raise ValueError('NEBULAE ERROR ៙ a valid quality should be an integer or a tuple.')
         self.quality = quality
 
     def _jpeg_np(self, img, qlt):
@@ -941,12 +941,12 @@ class WebP(ABC):
     def __init__(self, quality):
         super(WebP, self).__init__()
         if isinstance(quality, tuple):
-            assert quality[1] >= quality[0], 'NEBULAE ERROR ⨷ the second element should not be less than the first.'
-            assert quality[0]>0 and quality[1]<100, 'NEBULAE ERROR ⨷ a valid quality should be an integer within [1, 99].'
+            assert quality[1] >= quality[0], 'NEBULAE ERROR ៙ the second element should not be less than the first.'
+            assert quality[0]>0 and quality[1]<100, 'NEBULAE ERROR ៙ a valid quality should be an integer within [1, 99].'
         elif isinstance(quality, int):
-            assert quality>0 and quality<100, 'NEBULAE ERROR ⨷ a valid quality should be an integer within [1, 99].'
+            assert quality>0 and quality<100, 'NEBULAE ERROR ៙ a valid quality should be an integer within [1, 99].'
         else:
-            raise ValueError('NEBULAE ERROR ⨷ a valid quality should be an integer or a tuple.')
+            raise ValueError('NEBULAE ERROR ៙ a valid quality should be an integer or a tuple.')
         self.quality = quality
 
     def _webp_np(self, img, qlt):
@@ -984,7 +984,7 @@ def _vid_encode(imgs, fps, bitrate, codec, _format):
         elif _format == PIL:
             w, h = imgs[0].size
         else:
-            raise Exception('NEBULAE ERROR ⨷ the image format has not been assigned.')
+            raise Exception('NEBULAE ERROR ៙ the image format has not been assigned.')
         stream.height = h
         stream.width = w
         stream.pix_fmt = 'yuv420p'

@@ -29,8 +29,8 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..cockpit.engine import Engine
-from ..cockpit import CPU, GPU
+from ..power.engine import Engine
+from ..power import CPU, GPU
 from ..kit import ver2num
 from ..rule import ENV_RANK
 
@@ -129,7 +129,7 @@ class Craft(nn.Module):
         super(Craft, self).__init__()
         self.scope = scope
         self.__prec = None
-        self.__fns = []
+        self.__cmp = []
         self.__dict = {}
 
     def run(self, *args, **kwargs):
@@ -143,12 +143,12 @@ class Craft(nn.Module):
                 return self.run(*args, **kwargs)
 
     def lowp(self, prec=FP16):
-        assert prec in (FP16, ), 'NEBULAE ERROR ⨷ %s is not a valid type of tensors.' % prec
+        assert prec in (FP16, ), 'NEBULAE ERROR ៙ %s is not a valid type of tensors.' % prec
         self.__prec = prec
         self.half()
 
     def mixp(self, prec=FP16):
-        assert prec in (FP16, ), 'NEBULAE ERROR ⨷ %s is not a valid type of tensors.' % prec
+        assert prec in (FP16, ), 'NEBULAE ERROR ៙ %s is not a valid type of tensors.' % prec
         self.__prec = prec
 
     def gear(self, gr):
@@ -175,22 +175,22 @@ class Craft(nn.Module):
             elif gr.device == CPU:
                 self.cpu()
         else:
-            raise Exception('NEBULAE ERROR ⨷ %s is not a valid type of gear.' % type(gr))
+            raise Exception('NEBULAE ERROR ៙ %s is not a valid type of gear.' % type(gr))
         return self
 
     def vars(self):
         return self.parameters()
 
     def weights(self):
-        raise Exception('NEBULAE ERROR ⨷ only a few crafts have weights.')
+        raise Exception('NEBULAE ERROR ៙ only a few crafts have weights.')
 
-    def formulate(self, *fns):
-        for f in fns:
-            self.__fns.append(f)
+    def formulate(self, *cmp):
+        for c in cmp:
+            self.__cmp.append(c)
 
     @property
-    def fns(self):
-        return self.__fns
+    def cmp(self):
+        return self.__cmp
 
     def __getitem__(self, key):
         paths = key.split('/')
@@ -375,7 +375,7 @@ class Conv(Craft):
             elif dim == 3:
                 conv_fn = F.conv3d
             else:
-                raise Exception('NEBULAE ERROR ⨷ %d-d convolution is not supported.' % dim)
+                raise Exception('NEBULAE ERROR ៙ %d-d convolution is not supported.' % dim)
 
             if isinstance(stride, int):
                 stride = dim * [stride]
@@ -396,7 +396,7 @@ class Conv(Craft):
             elif dim == 3:
                 conv_fn = nn.Conv3d
             else:
-                raise Exception('NEBULAE ERROR ⨷ %d-d convolution is not supported.' % dim)
+                raise Exception('NEBULAE ERROR ៙ %d-d convolution is not supported.' % dim)
 
             if isinstance(stride, int):
                 stride = dim * [stride]
@@ -452,7 +452,7 @@ class TransConv(Craft):
         elif dim == 3:
             conv_fn = nn.ConvTranspose3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d convolution is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d convolution is not supported.' % dim)
 
         if isinstance(stride, int):
             stride = dim * [stride]
@@ -578,7 +578,7 @@ class Dense(Craft):
                  w_init=XavierNorm(), b_init=Zeros(), scope='DENSE'):
         super(Dense, self).__init__(scope)
         if axis == 0:
-            raise Exception('NEBULAE ERROR ⨷ you cannot apply dense layer along batch axis.')
+            raise Exception('NEBULAE ERROR ៙ you cannot apply dense layer along batch axis.')
         else:
             self.axis = axis
 
@@ -683,8 +683,8 @@ class EMA(Craft):
         return self.hull.weighs()
 
     @property
-    def fns(self):
-        return self.hull.__fns
+    def cmp(self):
+        return self.hull.__cmp
     
     def __getattr__(self, name: str): # only be invoked when getattr failed.
         # EMA is basically a wrapper of model i.e. self.hull,
@@ -973,7 +973,7 @@ class Mean(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.mean(x)
         else:
             y = torch.mean(x, dim=axis, keepdim=not reduce)
@@ -987,7 +987,7 @@ class Max(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.max(x)
         else:
             y = torch.max(x, dim=axis, keepdim=not reduce)
@@ -1001,7 +1001,7 @@ class Min(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.min(x)
         else:
             y = torch.min(x, dim=axis, keepdim=not reduce)
@@ -1015,7 +1015,7 @@ class Argmax(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.argmax(x)
         else:
             y = torch.argmax(x, dim=axis, keepdim=not reduce)
@@ -1029,7 +1029,7 @@ class Argmin(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.argmin(x)
         else:
             y = torch.argmin(x, dim=axis, keepdim=not reduce)
@@ -1063,7 +1063,7 @@ class Sum(Craft):
 
     def run(self, x, axis=None, reduce=True):
         if axis is None:
-            assert reduce, 'NEBULAE ERROR ⨷ reduce must be True when axis is not specified.'
+            assert reduce, 'NEBULAE ERROR ៙ reduce must be True when axis is not specified.'
             y = torch.sum(x)
         else:
             y = torch.sum(x, dim=axis, keepdim=not reduce)
@@ -1077,7 +1077,7 @@ class Dot(Craft):
 
     def run(self, x, y, axes=(), in_batch=False):
         if len(axes) > 0:
-            assert not in_batch, 'NEBULAE ERROR ⨷ in_batch is invalid when axes are assigned.'
+            assert not in_batch, 'NEBULAE ERROR ៙ in_batch is invalid when axes are assigned.'
             z = torch.tensordot(x, y, axes)
         else:
             if in_batch:
@@ -1153,7 +1153,7 @@ class MaxEigen(Craft):
         self.niters = niters
 
     def run(self, m, in_pair=True):
-        assert (m==m.T).all(), 'NEBULAE ERROR ⨷ only when m is a real symmetric matrix can MaxEigen be applied.'
+        assert (m==m.T).all(), 'NEBULAE ERROR ៙ only when m is a real symmetric matrix can MaxEigen be applied.'
         x = torch.normal(0, 1, size=(m.shape[-1],))
         for _ in range(self.niters):
             x = m @ x
@@ -1266,7 +1266,7 @@ class Zoom(Craft):
     def __init__(self, size: tuple=(), scale: tuple=(), interp=LINEAR, aligned=True, scope='ZOOM'):
         super(Zoom, self).__init__(scope)
         assert len(size)*len(scale)==0 and len(size)+len(scale)>0, \
-            'NEBULAE ERROR ⨷ either size or scale must be an empty tuple.'
+            'NEBULAE ERROR ៙ either size or scale must be an empty tuple.'
         if len(size)==0:
             self.zoomfn = partial(nn.functional.interpolate, scale_factor=scale)
         else:
@@ -1379,7 +1379,7 @@ class MaxPool(Craft):
             else:
                 pool_fn = nn.MaxPool3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d pooling is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d pooling is not supported.' % dim)
 
         if isinstance(stride, int):
             stride = dim * [stride]
@@ -1422,7 +1422,7 @@ class AvgPool(Craft):
             else:
                 pool_fn = nn.AvgPool3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d pooling is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d pooling is not supported.' % dim)
 
         if isinstance(stride, int):
             stride = dim * [stride]
@@ -1546,7 +1546,7 @@ class Dropout(Craft):
         elif dim == 3:
             dp_fn = nn.Dropout3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d BN is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d BN is not supported.' % dim)
         self.dp = dp_fn(p=p_drop)
 
     def run(self, x):
@@ -1565,7 +1565,7 @@ class BN(Craft):
         elif dim == 3:
             norm_fn = nn.BatchNorm3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d BN is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d BN is not supported.' % dim)
         self.norm = norm_fn(out_chs, momentum=1 - mmnt, affine=resilient, eps=1e-5)
 
     def weights(self):
@@ -1587,7 +1587,7 @@ class CBN(Craft):
         elif dim == 3:
             norm_fn = nn.BatchNorm3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d CN is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d CN is not supported.' % dim)
         self.norm = norm_fn(out_chs, momentum=1 - mmnt, affine=False, eps=1e-5)
         self.relu = nn.ReLU()
         self.gamma_1 = nn.Linear(in_chs, in_chs // 2)
@@ -1631,7 +1631,7 @@ class IN(Craft):
         elif dim == 3:
             norm_fn = nn.InstanceNorm3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d IN is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d IN is not supported.' % dim)
         self.norm = norm_fn(out_chs, momentum=1 - mmnt, affine=resilient, eps=1e-5)
 
     def weights(self):
@@ -1653,7 +1653,7 @@ class CIN(Craft):
         elif dim == 3:
             norm_fn = nn.InstanceNorm3d
         else:
-            raise Exception('NEBULAE ERROR ⨷ %d-d CN is not supported.' % dim)
+            raise Exception('NEBULAE ERROR ៙ %d-d CN is not supported.' % dim)
         self.norm = norm_fn(out_chs, momentum=1 - mmnt, affine=False, eps=1e-5)
         self.relu = nn.ReLU()
         self.gamma_1 = nn.Linear(in_chs, in_chs // 2)
@@ -1743,7 +1743,7 @@ class SN(Craft):
             # self.hull = craft
             self.craft = nn.utils.spectral_norm(self.craft, self.pname, self.niters, self.eps)
         else:
-            raise Exception('NEBULAE ERROR ⨷ SN does not support %s layer.' % type(craft))
+            raise Exception('NEBULAE ERROR ៙ SN does not support %s layer.' % type(craft))
 
     '''
         self.hull = craft[self.key]

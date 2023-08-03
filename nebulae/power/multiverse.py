@@ -76,8 +76,8 @@ if is_new_version:
             return self.module.weighs()
 
         @property
-        def fns(self):
-            return self.module.__fns
+        def cmp(self):
+            return self.module.__cmp
 else:
     try:
         from apex import parallel
@@ -135,8 +135,8 @@ class Multiverse(object):
             def _get_univ():
                 self.init()
                 return self
-            from .. import cockpit
-            cockpit.Universe = _get_univ
+            from .. import power
+            power.Universe = _get_univ
             return self.universe(*args, **kwargs)
         for r in range(self.nworld):
             self.env[ENV_RANK] = str(r)

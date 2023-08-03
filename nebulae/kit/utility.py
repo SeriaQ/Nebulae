@@ -489,8 +489,8 @@ def curve2str(curve, divisor, span, is_global, is_elastic, x_title='x', y_title=
 
 def join_imgs(imgs, nrow, ncol):
     N, H, W, C = imgs.shape
-    assert N == nrow*ncol, 'NEBULAE ERROR ⨷ the number of images does not match cells.'
-    assert N > 1, 'NEBULAE ERROR ⨷ one image does not need to be pieced together.'
+    assert N == nrow*ncol, 'NEBULAE ERROR ៙ the number of images does not match cells.'
+    assert N > 1, 'NEBULAE ERROR ៙ one image does not need to be pieced together.'
     margin_h = max(1, H//20)
     margin_w = max(1, W//20)
     canvas = np.zeros((margin_h*(nrow+1) + H*nrow, margin_w*(ncol+1) + W*ncol, C))
@@ -503,8 +503,8 @@ def join_imgs(imgs, nrow, ncol):
 
 
 def plot_in_one(crv_names, crv_files, dst_path):
-    assert len(crv_names)==len(crv_files), 'NEBULAE ERROR ⨷ the number of files does not match names.'
-    assert len(crv_names) > 1, 'NEBULAE ERROR ⨷ one curve does not need to be drawn together.'
+    assert len(crv_names)==len(crv_files), 'NEBULAE ERROR ៙ the number of files does not match names.'
+    assert len(crv_names) > 1, 'NEBULAE ERROR ៙ one curve does not need to be drawn together.'
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     i = 0
     for n, f in zip(crv_names, crv_files):
@@ -615,7 +615,7 @@ class GPUtil():
     def monitor(self, sec=5):
         if self.rank > 0:
             return
-        assert isinstance(sec, int), 'NEBULAE ERROR ⨷ the monitoring interval must be an integer.'
+        assert isinstance(sec, int), 'NEBULAE ERROR ៙ the monitoring interval must be an integer.'
         if sec<5:
             print('NEBULAE WARNING ◘ monitor GPU too often might cause abnormal statistics.')
         self.file = open('./temp_gpu_stat.csv', 'w')

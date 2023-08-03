@@ -44,7 +44,7 @@ class TimeMachine(object):
         self.anchors = []
 
     def to(self, craft, optz=None, file='', ckpt_scope=None, frozen=False):
-        assert self.ckpt_dir is not None, Exception('NEBULAE ERROR ⨷ anchor location is not provided.')
+        assert self.ckpt_dir is not None, Exception('NEBULAE ERROR ៙ anchor location is not provided.')
 
         ckpt_dir = os.path.join(self.ckpt_dir, file)
         if os.path.isfile(ckpt_dir):
@@ -59,7 +59,7 @@ class TimeMachine(object):
                     moment = arch
                     latest = last_mod
         if moment is None:
-            raise Exception('NEBULAE ERROR ⨷ valid anchor is not found.')
+            raise Exception('NEBULAE ERROR ៙ valid anchor is not found.')
 
         states = torch.load(moment)
         if optz is not None:
@@ -81,7 +81,7 @@ class TimeMachine(object):
     def drop(self, craft, optz=None, file='', save_scope=None, frozen=False):
         if self.rank>0:
             return
-        assert self.save_dir is not None, Exception('NEBULAE ERROR ⨷ there is nowhere to drop anchor.')
+        assert self.save_dir is not None, Exception('NEBULAE ERROR ៙ there is nowhere to drop anchor.')
 
         save_dir = os.path.join(self.save_dir, file)
         states = craft.state_dict()

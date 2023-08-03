@@ -60,7 +60,7 @@ class Engine(object):
             else:
                 gpus = avail_gpus
             if len(gpus) < ngpu:
-                raise Exception('NEBULAE ERROR ⨷ no enough available gpu.')
+                raise Exception('NEBULAE ERROR ៙ no enough available gpu.')
             # convert gpu list to string
             str_gpus = ','.join([str(g[0]) for g in gpus])
             # set environment variable
@@ -86,7 +86,7 @@ class Engine(object):
             print('| Reside in Devices: \033[1;36mCPU\033[0m |')
             print('+' + (24 * '-') + '+')
         else:
-            raise KeyError('NEBULAE ERROR ⨷ given device should be either cpu or gpu.')
+            raise KeyError('NEBULAE ERROR ៙ given device should be either cpu or gpu.')
 
         ###################################
         ##          IT WORKS !           ##
@@ -115,7 +115,7 @@ class Engine(object):
         elif self.device == CPU:
             return datum.cpu()
         else:
-            raise KeyError('NEBULAE ERROR ⨷ given device should be either cpu or gpu.')
+            raise KeyError('NEBULAE ERROR ៙ given device should be either cpu or gpu.')
 
     def shell(self, datum, as_np=True, sync=False):
         datum = datum.detach()

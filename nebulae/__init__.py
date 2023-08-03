@@ -23,8 +23,8 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 from . import fuel
 from . import astro
-from . import cockpit
-from . import logbook
+from . import power
+from . import logs
 from . import kit
 from .rule import CORE, ENV_RANK, FIELD_SEP, CHAR_SEP, FRAME_KEY, VALID_DTYPE
 
@@ -33,20 +33,20 @@ from .fuel import Tank as nft
 from .fuel import Depot as nfd
 from .fuel import Generator as nfg
 from .astro import dock as nad
-from .astro import fn as naf
+from .astro import Component as nac
 from .astro import hangar as nah
-from .cockpit import Engine as nce
-from .cockpit import TimeMachine as nct
-from .cockpit import Multiverse as ncm
-from .cockpit import Universe as ncu
-from .logbook import DashBoard as nld
-from .logbook import Inspector as nli
+from .power import Engine as npe
+from .power import TimeMachine as npt
+from .power import Multiverse as npm
+from .power import Universe as npu
+from .logs import DashBoard as nld
+from .logs import Inspector as nli
 from .kit import Timer as nkt
 from .kit import GPUtil as nkg
 from .kit import destine as nkd
 
 
 name = 'nebulae'
-__all__ = ['fuel', 'astro', 'cockpit', 'logbook', 'kit',
-           'nfc', 'nft', 'nfd', 'nfg', 'nad', 'naf', 'nah', 'nce', 'nct', 'ncm', 'ncu', 'nld', 'nli', 'nkt', 'nkg', 'nkd',
+__all__ = ['fuel', 'astro', 'power', 'logs', 'kit',
+           'nfc', 'nft', 'nfd', 'nfg', 'nad', 'nac', 'nah', 'npe', 'npt', 'npm', 'npu', 'nld', 'nli', 'nkt', 'nkg', 'nkd',
            'CORE', 'ENV_RANK', 'FIELD_SEP', 'CHAR_SEP', 'FRAME_KEY', 'VALID_DTYPE']

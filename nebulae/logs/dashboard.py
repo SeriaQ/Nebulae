@@ -35,6 +35,11 @@ from ..rule import ENV_RANK
 
 
 
+RAW = 0
+PERCENT = 1
+INVIZ = 2
+TAILOR = 3
+
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
@@ -51,7 +56,7 @@ class DashBoard(object):
             self.length = len(log_dir)
             self.cnt = 0
         else:
-            'NEBULAE ERROR ⨷ log_dir must be either a path string or an iterator.'
+            'NEBULAE ERROR ៙ log_dir must be either a path string or an iterator.'
         self.rank = int(os.environ.get(ENV_RANK, -1))
         if not os.path.exists(self.log_dir):
             os.mkdir(self.log_dir)
@@ -63,6 +68,7 @@ class DashBoard(object):
         self.max_epoch = 0
         self.first_call = True # if it is the first call for self.__call__()
         self.prev_time = -1
+        self.unk_miles = 0
         self.win_mile = {}
         self.gauge_mile = {}
         self.gauge_epoch = {}
@@ -88,18 +94,18 @@ class DashBoard(object):
         form, mode = self.format[abbr]
         if isinstance(form, str):
             form = '%-' + form
-        if mode == 'raw':
-            return (' %%s ➠ \033[1;36m%s\033[0m |' % form) % (abbr, value)
-        elif mode == 'percent':
-            return (' %%s ➠ \033[1;36m%s%%%%\033[0m |' % form) % (abbr, value*100)
-        elif mode == 'inviz':
+        if mode == RAW:
+            return (' %%s ➭ \033[1;36m%s\033[0m |' % form) % (abbr, value)
+        elif mode == PERCENT:
+            return (' %%s ➭ \033[1;36m%s%%%%\033[0m |' % form) % (abbr, value*100)
+        elif mode == INVIZ:
             form(stage, epoch, mile, mpe, value)
             return ''
-        elif mode == 'tailor':
+        elif mode == TAILOR:
             string = form(value)
-            return ' %s ➠ \033[1;36m%s\033[0m |' % (abbr, string)
+            return ' %s ➭ \033[1;36m%s\033[0m |' % (abbr, string)
         else:
-            raise KeyError('%s is an illegal format option.' % mode)
+            raise KeyError('NEBULAE ERROR ៙ the display mode is an illegal format option.')
 
     def __iter__(self):
         return self
@@ -112,18 +118,18 @@ class DashBoard(object):
             self.cnt += 1
         return self.iterable.__next__()
     
-    def __call__(self, entry, mile, epoch, mpe, stage, interval=1, duration=None, plot=True, wipe=False, flush=0,
+    def __call__(self, entry, epoch, mile, mpe, stage='ITER', interval=1, duration=None, plot=True, wipe=False, flush=0,
                 is_global=True, is_elastic=False, in_loop=(-1,), last_for=1):
         if self.rank>0:
             return
-        assert not (plot and wipe), 'NEBULAE ERROR ⨷ plot and wipe are mutually exclusive.'
+        assert not (plot and wipe), 'NEBULAE ERROR ៙ plot and wipe are mutually exclusive.'
         epoch += 1
         mile += 1
         string_mile = ''
         flag_display = False
         flag_epoch_end = False
         len_loop = len(in_loop)
-        assert in_loop[0]<0 or len_loop>1, 'NEBULAE ERROR ⨷ the dashboard should loop through more than one curve.'
+        assert in_loop[0]<0 or len_loop>1, 'NEBULAE ERROR ៙ the dashboard should loop through more than one curve.'
         if mile % interval == 0:
             flag_display = True
         if mile % mpe == 0:
@@ -153,7 +159,7 @@ class DashBoard(object):
             if stage not in self.trail_mile.keys():
                 self.trail_mile[stage] = []
                 self.trail_epoch[stage] = []
-            if value.dtype == np.float16:
+            if isinstance(value, np.ndarray) and value.dtype == np.float16:
                 value = value.astype(np.float32)
             self.win_mile[name][(global_mile - 1) % self.window] = value
             if mile == 1: # the start of an epoch
@@ -214,6 +220,7 @@ class DashBoard(object):
                 if self.prev_time < 0:
                     duration = '--:--'
                     self.prev_time = time.time()
+                    self.unk_miles += 1
                 else:
                     curr_time = time.time()
                     duration = '%.3f'%(curr_time - self.prev_time)
@@ -224,7 +231,7 @@ class DashBoard(object):
                 end_char = '\r'
             else:
                 end_char = '\n'
-            print('| %d%s Epoch ✇ %d Miles ⊰⟦\033[43m%s\033[0m%s⟧⊱︎ ⧲ %ss/mile | %s |%s     '
+            print('| %d%s Epoch ⚘ %d Miles ≺[\033[43m%s\033[0m%s]≻ ₪ %ss/mile | %s |%s     '
                   % (epoch, ordinal, mile, yellow_bar, space_bar, duration, stage, string_mile), end=end_char)
             if wipe:
                 stdout.flush()
@@ -248,17 +255,18 @@ class DashBoard(object):
                 print(f'\033[{vertical+flush+7}A')
             ordinal = self._getOridinal(epoch)
             mileage = str(epoch * mpe)
-            display = '| %d%s Epoch ✇ %s Miles ︎⧲ %.2fs/epoch | %s |%s' \
-                      % (epoch, ordinal, mileage, time.time() - self.time, stage, string_epoch)
+            display = '| %d%s Epoch ⚘ %s Miles ₪ %.2fs/epoch | %s |%s' \
+                    % (epoch, ordinal, mileage, (time.time() - self.time) * mpe / (mpe - self.unk_miles), stage, string_epoch)
             print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
             print(display)
             print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
             self.time = time.time()
+            self.unk_miles = 0
 
     def read(self, entry, stage, epoch=-1):
         if self.rank>0:
             return 0
-        assert epoch!=0, 'NEBULAE ERROR ⨷ epoch starts from 1.'
+        assert epoch!=0, 'NEBULAE ERROR ៙ epoch starts from 1.'
         epoch = epoch-1 if epoch>0 else epoch
         return self.gauge_epoch[stage + ':' + entry][epoch]
 
@@ -267,7 +275,7 @@ class DashBoard(object):
             return
         name = stage + ':' + entry
         if name in self.gauge_epoch.keys():
-            raise KeyError('NEBULAE ERROR ⨷ %s has been taken in dashboard.'%name)
+            raise KeyError('NEBULAE ERROR ៙ %s has been taken in dashboard.'%name)
         else:
             self.gauge_epoch[name] = value
 
@@ -308,7 +316,7 @@ class DashBoard(object):
                     self.trail_epoch[key] = (value[:, 0] - value[-1, 0]).tolist() + self.trail_epoch[key]
                     self.gauge_epoch[key] = value[:, 1].tolist() + self.gauge_epoch[key]
                 else:
-                    raise ValueError('NEBULAE ERROR ⨷ header is either to be "mile" or "epoch", but got %s.' % unit)
+                    raise ValueError('NEBULAE ERROR ៙ header is either to be "mile" or "epoch", but got %s.' % unit)
         if gauge:
             boards = {}
             # group by metrics

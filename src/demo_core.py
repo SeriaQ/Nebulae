@@ -55,19 +55,19 @@ def launch(cfg):
     NGPU = cfg['env']['ngpu']
     TMODE = cfg['env']['train_mode']
     
-    uv = cockpit.Universe()
+    uv = power.Universe()
     kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(stage, epoch, mile, mpe, value):
         if mile%32==0:
             cv2.imwrite('/root/proj/logs/ckpt/retro_%d_%d.png'%(epoch, mile), (value[:,:,0] * 255).astype(np.uint8))
-    db = logbook.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
+    db = logs.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
                                window=15, divisor=15, span=70,
-                               format={"Acc": [".2f", "percent"], "Loss": [".3f", "raw"]})#, 'Img': [saveimg, 'inviz']})
+                               format={"Acc": [".2f", logs.PERCENT], "Loss": [".3f", logs.RAW]})#, 'Img': [saveimg, logs.INVIZ]})
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = cockpit.Engine(device=neb.cockpit.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=neb.cockpit.STATIC)
-    tm = cockpit.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
+    ng = power.Engine(device=power.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=neb.power.STATIC)
+    tm = power.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
                                  ckpt_dir=os.path.join(DROOT, "ckpt"))
 
     # ---------------------------------- Fuel ------------------------------------ #
@@ -126,7 +126,7 @@ def launch(cfg):
     class Net(nad.Craft):
         def __init__(self, nclass, scope):
             super(Net, self).__init__(scope)
-            self.formulate(naf('res/in') >> naf('res/out'))
+            self.formulate(nac('res/in') >> nac('res/out'))
 
             # pad = dock.autopad((3, 3), 2)
             # self.conv = dock.Conv(3, 8, (3, 3), stride=2, padding=pad, b_init=dock.Void())
@@ -156,7 +156,7 @@ def launch(cfg):
             self.net = net
             self.loss = nad.SftmXE(is_one_hot=False)
             self.acc = nad.AccCls(multi_class=False, is_one_hot=False)
-            self.optz = nad.Adam(self.net, LR, wd=WD, lr_decay=nad.StepLR(DSTEP, DRATE), warmup=WARM, mixp=True)
+            self.optz = nad.Adam(self.net, LR, wd=WD, lr_decay=nad.StepLR(DSTEP, DRATE), warmup=WARM, )#mixp=True)
 
         @kit.Timer
         def run(self, x, z):
@@ -192,13 +192,13 @@ def launch(cfg):
 
     # --------------------------------- Inspect --------------------------------- #
     net = Net(10, 'cnn')
-    net.mixp()
+    # net.mixp()
     net = nad.EMA(net, on_device=True)
     net = net.gear(ng)
     net = uv.sync(net)
     train = Train(net)
     dev = Dev(net)
-    sp = neb.logbook.Inspector(export_path=os.path.join(LROOT, 'ckpt/res50'), verbose=True, onnx_ver=9)
+    sp = neb.logs.Inspector(export_path=os.path.join(LROOT, 'ckpt/res50'), verbose=True, onnx_ver=9)
     dummy_x = nad.coat(np.random.rand(1, 3, ISIZE, ISIZE).astype(np.float32))
     sp.dissect(net, dummy_x)
     sp.paint(net, dummy_x)
@@ -217,7 +217,7 @@ def launch(cfg):
             loss = nad.shell(loss)
             acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss':loss}
-            db(probe, mile, epoch, mpe, 'TRAIN', interval=2, \
+            db(probe, epoch, mile, mpe, 'TRAIN', interval=2, \
                         is_global=True, is_elastic=True, in_loop=(0, 1), last_for=16)
 
         mpe = dp.MPE[tkd]
@@ -229,7 +229,7 @@ def launch(cfg):
             loss = nad.shell(loss)
             acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss': loss}#, 'Img': fm}
-            db(probe, mile, epoch, mpe, 'DEV', interval=2, )#duration=duration)
+            db(probe, epoch, mile, mpe, 'DEV', interval=2, )#duration=duration)
         curr = db.read('Acc', 'DEV')
         if curr > best:
             tm.drop(net, train.optz)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
     cfg = kit.parse_cfg('config_core.yml')
     if cfg['env']['train_mode'] == 'dt':
-        mv = neb.cockpit.Multiverse(launch, cfg['env']['ngpu'])
+        mv = neb.power.Multiverse(launch, cfg['env']['ngpu'])
         mv(cfg)
     else:
         launch(cfg)

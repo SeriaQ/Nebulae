@@ -62,13 +62,13 @@ class Generator(object):
 
         # check if key arguments are valid
         if self.param['file_list'].split('.')[-1] != 'csv':
-            raise Exception('NEBULAE ERROR ⨷ file list should be a csv file.')
+            raise Exception('NEBULAE ERROR ៙ file list should be a csv file.')
         for dt in self.param['dtype']:
             if dt.strip('v') not in VALID_DTYPE:
-                raise Exception('NEBULAE ERROR ⨷ %s is not a valid data type.' % dt)
+                raise Exception('NEBULAE ERROR ៙ %s is not a valid data type.' % dt)
 
     def _compress(self, img_path, height, width, channel, quality, keep_exif):
-        ch_err = Exception('NEBULAE ERROR ⨷ images having %d channels are invalid.' % channel)
+        ch_err = Exception('NEBULAE ERROR ៙ images having %d channels are invalid.' % channel)
         if channel != 1 and channel != 3:
             raise ch_err
         with io.BytesIO() as buffer:
@@ -98,7 +98,7 @@ class Generator(object):
             elif quality == LOSSLESS:
                 image.save(buffer, format='PNG', compress_level=0)
             else:
-                raise KeyError('NEBULAE ERROR ⨷ quality key is not defined.')
+                raise KeyError('NEBULAE ERROR ៙ quality key is not defined.')
             encoded_bytes = buffer.getvalue()
             if has_cache:
                 cache.close()
@@ -153,7 +153,7 @@ class Generator(object):
                 if l == 0: # initialize data dict
                     info_keys = line
                     if len(line) != len(self.param['dtype']):
-                        raise Exception('NEBULAE ERROR ⨷ number of given dtypes does not match the provided csv file.')
+                        raise Exception('NEBULAE ERROR ៙ number of given dtypes does not match the provided csv file.')
                     for key in line:
                         data[key] = []
                     max_frames = 0
@@ -190,9 +190,9 @@ class Generator(object):
 
     def generate(self, dst_path, height=0, width=0, channel=3, quality=OPTIM, nshard=1, keep_exif=True):
         if not (h5py.is_hdf5(dst_path) or dst_path.split('.')[-1]=='hdf5'):
-            raise Exception('NEBULAE ERROR ⨷ hdf5 file is recommended for storing compressed data.')
+            raise Exception('NEBULAE ERROR ៙ hdf5 file is recommended for storing compressed data.')
         if nshard < 1 or (not isinstance(nshard, int)):
-            raise ValueError('NEBULAE ERROR ⨷ the number of nshard must be an positive integer.')
+            raise ValueError('NEBULAE ERROR ៙ the number of nshard must be an positive integer.')
         duration = self._file2Byte(dst_path, height, width, channel, quality, nshard, keep_exif)[0]
         print('+' + (80 * '-') + '+')
         print('| \033[1;35m%-38s\033[0m has been generated within \033[1;35m%12.2fs\033[0m |'
@@ -204,7 +204,7 @@ class Generator(object):
             kwargs = config
         for key in kwargs:
             if key not in self.modifiable_keys:
-                raise KeyError('NEBULAE ERROR ⨷ %s is not a modifiable parameter or has not been defined.' % key)
+                raise KeyError('NEBULAE ERROR ៙ %s is not a modifiable parameter or has not been defined.' % key)
             else:
                 self.param[key] = kwargs[key]
 

@@ -32,16 +32,16 @@ __all__ += craft.__all__
 
 
 def coat(datum, as_const=True, sync=True):
-    raise NotImplementedError('NEBULAE ERROR ⨷ coat function becomes valid only after setting up an Engine.')
+    raise NotImplementedError('NEBULAE ERROR ៙ coat function becomes valid only after setting up an Engine.')
 
 def shell(datum, as_np=True, sync=False):
-    raise NotImplementedError('NEBULAE ERROR ⨷ shell function becomes valid only after setting up an Engine.')
+    raise NotImplementedError('NEBULAE ERROR ៙ shell function becomes valid only after setting up an Engine.')
 
 
-class fn():
+class Component():
     def __init__(self, name, comp=None, symbol=''):
         self.name = name
-        if comp is None: # atomic fn
+        if comp is None: # atomic component
             self.comp = []
         else:
             assert len(comp)==2
@@ -74,28 +74,28 @@ class fn():
 
 
     def __rshift__(self, other): # cascade
-        return fn('', [self, other], '>')
+        return Component('', [self, other], '>')
 
     def __add__(self, other): # add
-        return fn('', [self, other], '+')
+        return Component('', [self, other], '+')
 
     def __sub__(self, other): # sub
-        return fn('', [self, other], '-')
+        return Component('', [self, other], '-')
 
     def __mul__(self, other): # multiply
-        return fn('', [self, other], '*')
+        return Component('', [self, other], '*')
 
     def __matmul__(self, other): # dot
-        return fn('', [self, other], '@')
+        return Component('', [self, other], '@')
 
     def __and__(self, other): # concat
-        return fn('', [self, other], '&')
+        return Component('', [self, other], '&')
 
     def __or__(self, other):
-        return fn('', [self, other], '|')
+        return Component('', [self, other], '|')
 
     def __xor__(self, other): # with
-        return fn('', [self, other], '^')
+        return Component('', [self, other], '^')
 
     def _cap(self, scope):
         if '/' not in self.name:

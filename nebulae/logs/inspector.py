@@ -22,10 +22,10 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ..astro import fn
+from ..astro import Component
 from ..kit import ver2num
 from ..astro.craft import DP
-from ..cockpit.multiverse import DDP
+from ..power.multiverse import DDP
 from ..rule import ENV_RANK
 
 import os
@@ -70,7 +70,7 @@ class Inspector(object):
             self.archit = archit
         _ = archit(*dummy_args, **dummy_kwargs)
         print('+' + 77 * '-' + '+')
-        for f in self.archit.fns:
+        for f in self.archit.cmp:
             self._parse(f)
         self.layout.render(self.export_path, view=False, format='png')
         os.remove(self.export_path)
@@ -123,7 +123,7 @@ class Inspector(object):
                 f.name = nodes[-1].name
                 return nodes[-1]
             elif sym in ['+', '-', '*', '@', '&', '|', '^']:
-                pivot = fn(sym.join([nd.name for nd in nodes]))
+                pivot = Component(sym.join([nd.name for nd in nodes]))
                 f.name = pivot.name
                 self.shapes[pivot.name] = ' '
                 if sym=='^':

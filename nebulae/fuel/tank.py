@@ -112,10 +112,10 @@ class Depot(object):
         tid = '0t' + hex(id(tank))[2:]
         # >| check argument validity
         if tid in self._tanks.keys():
-            raise AttributeError('NEBULAE ERROR ⨷ this tank has already been mounted.')
+            raise AttributeError('NEBULAE ERROR ៙ this tank has already been mounted.')
         if nworker == 0 and prefetch > 0:
-            raise ValueError('NEBULAE ERROR ⨷ the number of workers should be more than 1 when prefetcher is enabled.')
-        assert nworker != 0, 'NEBULAE ERROR ⨷ the number of workers must be a positive integer.'
+            raise ValueError('NEBULAE ERROR ៙ the number of workers should be more than 1 when prefetcher is enabled.')
+        assert nworker != 0, 'NEBULAE ERROR ៙ the number of workers must be a positive integer.'
         if transmit and (self._chip is None or not cuda.is_available()):
             print('NEBULAE WARNING ◘ you have no GPU to which the data is transmitting.')
             transmit = False
@@ -164,7 +164,7 @@ class Depot(object):
         return tid
 
     def unmount(self, tid):
-        assert tid in self._tanks.keys(), 'NEBULAE ERROR ⨷ this tank is not mounted in the depot.'
+        assert tid in self._tanks.keys(), 'NEBULAE ERROR ៙ this tank is not mounted in the depot.'
         self._tanks.pop(tid)
         self._batch_size.pop(tid)
         self.MPE.pop(tid)
@@ -182,7 +182,7 @@ class Depot(object):
             elif isinstance(self._fetched_data, abc.Sequence):
                 self._fetched_data = [self._coater(fd) for fd in self._fetched_data]
             else:
-                raise TypeError('NEBULAE ERROR ⨷ batchified data should be a tensor, sequence or dictionary but is %s'
+                raise TypeError('NEBULAE ERROR ៙ batchified data should be a tensor, sequence or dictionary but is %s'
                                 % type(self._fetched_data))
 
     def _fetch(self, tid):

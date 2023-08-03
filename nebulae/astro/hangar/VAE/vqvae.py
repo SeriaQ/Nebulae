@@ -22,7 +22,7 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, fn
+from ... import dock, Component
 from .architect import ResVQE, ResVQD, VecQuant
 
 
@@ -30,9 +30,6 @@ from .architect import ResVQE, ResVQD, VecQuant
 class VQVAE(dock.Craft):
     def __init__(self, in_shape, hidden_dim, ncodes, scope='VQVAE'):
         super(VQVAE, self).__init__(scope)
-        self.formulate(fn('input') >> fn('encoded') >> fn('quantized'),
-                    (fn('quantized') - fn('encoded')) >> fn('detached'),
-                    (fn('detached') + fn('encoded')) >> fn('vector') >> fn('output'))
 
         self.E = ResVQE(in_shape, hidden_dim, ncodes)
         self.D = ResVQD(in_shape, hidden_dim)
