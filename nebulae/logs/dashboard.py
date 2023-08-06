@@ -38,11 +38,14 @@ from ..rule import ENV_RANK
 RAW = 0
 PERCENT = 1
 INVIZ = 2
-TAILOR = 3
+IMAGE = 3
+TAILOR = 4
 
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
+    char_pixel = "∎◙⧫●♠◕◍❅☢◭◮◔⎖✠⚙☮☒♾@B8&WM#⦷⦶*mwap॥✝0QOo◇⨞u+/\()?i!lI1[]|∸⌯~⊷-⊸_;:࿒\"^,'`.⋄· "
+        
     def __init__(self, log_dir='./logbook', window=1, divisor=12, span=60, format=None):
         '''
         :param window: the window length of moving average
@@ -66,6 +69,8 @@ class DashBoard(object):
         self.format = format
 
         self.max_epoch = 0
+        self.char_image = ''
+        self.image_row = 0
         self.first_call = True # if it is the first call for self.__call__()
         self.prev_time = -1
         self.unk_miles = 0
@@ -99,7 +104,27 @@ class DashBoard(object):
         elif mode == PERCENT:
             return (' %%s ➭ \033[1;36m%s%%%%\033[0m |' % form) % (abbr, value*100)
         elif mode == INVIZ:
-            form(stage, epoch, mile, mpe, value)
+            form(value, epoch, mile, mpe, stage)
+            return ''
+        elif mode == IMAGE:
+            if form(value, epoch, mile, mpe, stage):
+                assert isinstance(value, np.ndarray), 'NEBULAE ERROR ៙ the image must be an numpy array.'
+                H, W = value.shape
+                assert W<=128, 'NEBULAE ERROR ៙ the image width should not be greater than 128.'
+                assert H<=64, 'NEBULAE ERROR ៙ the image height should not be greater than 64.'
+                if value.dtype in (np.float16, np.float32):
+                    assert value.min()>=0 and value.max()<=1, 'NEBULAE ERROR ៙ the pixels in float point should not be out of [0,1].'
+                elif value.dtype == np.uint8:
+                    value = (value.astype(np.float32)) / 255.
+                else:
+                    raise TypeError('NEBULAE ERROR ៙ the image dtype must be one of fp16, fp32 and uint8.')
+                self.char_image = ''
+                self.image_row = 1
+                for y in range(0,H,2):
+                    for x in range(W):
+                        self.char_image += self.char_pixel[round(float(value[y, x]) * (len(self.char_pixel)-1))]
+                    self.char_image += max(0, 128 - W) * ' ' + '\n'
+                    self.image_row += 1
             return ''
         elif mode == TAILOR:
             string = form(value)
@@ -114,7 +139,7 @@ class DashBoard(object):
         if self.cnt == self.length:
             self.cnt = 0
         else:
-            self({}, self.cnt, 0, self.length, 'ITER', plot=False)
+            self({}, 0, self.cnt, self.length, 'ITER', plot=False)
             self.cnt += 1
         return self.iterable.__next__()
     
@@ -146,9 +171,9 @@ class DashBoard(object):
             global_mile = ((epoch-1)*mpe+mile)
             name = stage + ":" + abbr
             items.append(name)
-            if flag_display or self.format[abbr][1] == 'inviz':
+            if flag_display or self.format[abbr][1] == INVIZ:
                 string_mile += self._formatAsStr(stage, abbr, value, epoch, mile, mpe)
-            if self.format[abbr][1] in ('inviz', 'tailor'):
+            if self.format[abbr][1] in (IMAGE, INVIZ, TAILOR):
                 if flag_epoch_end:
                     _ = self._formatAsStr(stage, abbr, value, epoch, -1, mpe)
                 continue
@@ -210,7 +235,10 @@ class DashBoard(object):
                 curve = curve2str(data, self.divisor, self.span, is_global, is_elastic,
                                   x_title='step', y_title=items[metric_idx] + 10*' ')
                 print(curve)
-                print(w * ' ', end='\r')
+
+            if self.image_row > 0:
+                print(self.char_image)
+            print(w * ' ', end='\r')
 
             ordinal = self._getOridinal(epoch)
             progress = int((mile - 1) / mpe * 20 + 0.4)
@@ -237,9 +265,9 @@ class DashBoard(object):
                 stdout.flush()
             else:
                 if curve_exists:
-                    print(f'\033[{self.divisor+flush+7}A')
+                    print(f'\033[{self.divisor+flush+self.image_row+7}A')
                 else:
-                    print(f'\033[2A')
+                    print(f'\033[{self.image_row+2}A')
             
         if flag_epoch_end:
             if wipe:
@@ -250,9 +278,9 @@ class DashBoard(object):
                     vertical = self.divisor
                 else:
                     vertical = -2
-                for _ in range(vertical+flush+6):
+                for _ in range(vertical+flush+self.image_row+6):
                     print(w * ' ')
-                print(f'\033[{vertical+flush+7}A')
+                print(f'\033[{vertical+flush+self.image_row+7}A')
             ordinal = self._getOridinal(epoch)
             mileage = str(epoch * mpe)
             display = '| %d%s Epoch ⚘ %s Miles ₪ %.2fs/epoch | %s |%s' \
@@ -260,6 +288,8 @@ class DashBoard(object):
             print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
             print(display)
             print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
+            self.char_image = ''
+            self.image_row = 0
             self.time = time.time()
             self.unk_miles = 0
 
