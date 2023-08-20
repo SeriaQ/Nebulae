@@ -37,7 +37,7 @@ try:
     import av
     logging.getLogger('libav').setLevel(logging.FATAL)
 except:
-    print('NEBULAE WARNING ◘ that PyAV has not been installed properly results in failure of video augmentation.')
+    print('NEBULAE WARNING ◘ that PyAV has not been installed properly might result in failure of video augmentation.')
 
 
 __all__ = ('Comburant',

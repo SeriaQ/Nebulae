@@ -23,4 +23,4 @@ Email: zzqsummerai@yeah.net
 '''
 # -*- coding:utf-8 -*-
 from .inspector import Inspector
-from .dashboard import DashBoard, RAW, PERCENT, INVIZ, IMAGE, TAILOR
+from .dashboard import DashBoard, RAW, PERCENT, INVIZ, IMAGE, CUSTOM

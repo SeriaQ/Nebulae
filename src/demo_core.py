@@ -58,17 +58,18 @@ def launch(cfg):
     uv = power.Universe()
     kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
-    def saveimg(stage, epoch, mile, mpe, value):
+    def saveimg(value, epoch, mile, mpe, stage):
         if mile%32==0:
             cv2.imwrite('/root/proj/logs/ckpt/retro_%d_%d.png'%(epoch, mile), (value[:,:,0] * 255).astype(np.uint8))
-    db = logs.DashBoard(log_dir=os.path.join(DROOT, "ckpt"),
-                               window=15, divisor=15, span=70,
-                               format={"Acc": [".2f", logs.PERCENT], "Loss": [".3f", logs.RAW]})#, 'Img': [saveimg, logs.INVIZ]})
+    db = logs.DashBoard(log_dir=os.path.join(LROOT, "ckpt"), window=15, divisor=15, span=70,
+                        format={"Acc": [".2f", logs.PERCENT], "Loss": [".3f", logs.RAW],
+                                "Shot": [lambda *x: x[2]==32, logs.IMAGE]}#'Img': [saveimg, logs.INVIZ]}
+                               )
 
     # --------------------------------- Cockpit ---------------------------------- #
-    ng = power.Engine(device=power.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=neb.power.STATIC)
-    tm = power.TimeMachine(save_dir=os.path.join(DROOT, "ckpt"),
-                                 ckpt_dir=os.path.join(DROOT, "ckpt"))
+    ng = power.Engine(device=power.GPU, ngpu=NGPU, multi_piston=TMODE=='dp', gearbox=power.STATIC)
+    tm = power.TimeMachine(save_dir=os.path.join(LROOT, "ckpt"),
+                            ckpt_dir=os.path.join(LROOT, "ckpt"))
 
     # ---------------------------------- Fuel ------------------------------------ #
     cb_train = fuel.Comburant(fuel.Random(0.5, fuel.Brighten(BRIGHT)),
@@ -87,15 +88,15 @@ def launch(cfg):
     class TrainSet(fuel.Tank):
         def load(self, path):
             self.data = fuel.load_h5(path)
-            return len(self.data['label'])
+            return len(self.data['class'])
 
         # @kit.SPST
         def fetch(self, idx):
             ret = {}
             img = self.data['image'][idx]
-            img = cb_train(img) * 2 - 1
+            img = cb_train(img)
             ret['image'] = img
-            label = self.data['label'][idx].astype('int64')
+            label = self.data['class'][idx].astype('int64')
             ret['label'] = label
             return ret
 
@@ -103,23 +104,23 @@ def launch(cfg):
     class DevSet(fuel.Tank):
         def load(self, path):
             self.data = fuel.load_h5(path)
-            return len(self.data['label'])
+            return len(self.data['class'])
 
         # @kit.SPST
         def fetch(self, idx):
             ret = {}
             img = self.data['image'][idx]
-            img = cb_dev(img) * 2 - 1
+            img = cb_dev(img)
             ret['image'] = img
-            label = self.data['label'][idx].astype('int64')
+            label = self.data['class'][idx].astype('int64')
             ret['label'] = label
             return ret
 
     # {'image': 'vuint8', 'label': 'int64'}
     dp = fuel.Depot(ng)
-    tkt = dp.mount(TrainSet(os.path.join(DROOT, "cifar10/cifar10_train.hdf5")),
+    tkt = dp.mount(TrainSet(os.path.join(DROOT, "lemon4/lemon4_train.hdf5")),
                         batch_size=BSIZE, shuffle=True, nworker=4)
-    tkd = dp.mount(DevSet(os.path.join(DROOT, "cifar10/cifar10_val.hdf5")),
+    tkd = dp.mount(DevSet(os.path.join(DROOT, "lemon4/lemon4_dev.hdf5")),
                       batch_size=BSIZE, shuffle=False)
 
     # -------------------------------- Astro Dock --------------------------------- #
@@ -191,7 +192,7 @@ def launch(cfg):
             return loss, acc#, m
 
     # --------------------------------- Inspect --------------------------------- #
-    net = Net(10, 'cnn')
+    net = Net(4, 'cnn')
     # net.mixp()
     net = nad.EMA(net, on_device=True)
     net = net.gear(ng)
@@ -216,8 +217,12 @@ def launch(cfg):
             duration, loss, acc = train(img, label)
             loss = nad.shell(loss)
             acc = nad.shell(acc)
-            probe = {'Acc': acc, 'Loss':loss}
-            db(probe, epoch, mile, mpe, 'TRAIN', interval=2, \
+            imgl = (nad.shell(batch['image'][0]) + 1) / 2
+            imgr = (nad.shell(batch['image'][1]) + 1) / 2
+            img = np.concatenate((imgl, imgr), -1)
+            probe = {'Acc': acc, 'Loss':loss, }
+                    #  'Shot': cv2.cvtColor(img.transpose(1,2,0), cv2.COLOR_BGR2GRAY)}
+            db(probe, epoch, mile, mpe, 'TRAIN', interv=2, \
                         is_global=True, is_elastic=True, in_loop=(0, 1), last_for=16)
 
         mpe = dp.MPE[tkd]
@@ -228,8 +233,8 @@ def launch(cfg):
             duration, loss, acc = dev(img, label)
             loss = nad.shell(loss)
             acc = nad.shell(acc)
-            probe = {'Acc': acc, 'Loss': loss}#, 'Img': fm}
-            db(probe, epoch, mile, mpe, 'DEV', interval=2, )#duration=duration)
+            probe = {'Acc': acc, 'Loss': loss, }
+            db(probe, epoch, mile, mpe, 'DEV', interv=2, )#duration=duration)
         curr = db.read('Acc', 'DEV')
         if curr > best:
             tm.drop(net, train.optz)

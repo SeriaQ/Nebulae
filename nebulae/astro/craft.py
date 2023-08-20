@@ -63,7 +63,7 @@ __all__ = ('Craft',
 
            'Clip', 'Dropout', 'BN', 'CBN', 'IN', 'CIN', 'LN', 'GN', 'SN',
 
-           'Relu', 'LRelu', 'PRelu', 'Gelu', 'Tanh', 'Sigm', 'Sftm', 'Sftp',
+           'Relu', 'LRelu', 'PRelu', 'Gelu', 'Silu', 'Tanh', 'Sigm', 'Sftm', 'Sftp',
 
            'MAE', 'MSE', 'Huber', 'Charbon', 'SigmXE', 'SftmXE', 'OHEM',
 
@@ -1483,6 +1483,17 @@ class Gelu(Craft):
     def __init__(self, scope='GELU'):
         super(Gelu, self).__init__(scope)
         self.actv = nn.GELU()
+
+    def run(self, x):
+        y = self.actv(x)
+        return y
+    
+
+
+class Silu(Craft):
+    def __init__(self, scope='SILU'):
+        super(Silu, self).__init__(scope)
+        self.actv = nn.SiLU()
 
     def run(self, x):
         y = self.actv(x)

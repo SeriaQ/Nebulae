@@ -30,6 +30,7 @@ import time
 import pandas as pd
 import os
 from sys import stdout
+from copy import deepcopy
 from collections.abc import Iterable
 from ..rule import ENV_RANK
 
@@ -39,30 +40,39 @@ RAW = 0
 PERCENT = 1
 INVIZ = 2
 IMAGE = 3
-TAILOR = 4
+CUSTOM = 4
 
 class DashBoard(object):
     palette = ['#F08080', '#00BFFF', '#FFFF00', '#2E8B57', '#6A5ACD', '#FFD700', '#808080']
     linestyle = ['-', '--', '-.', ':']
     char_pixel = "∎◙⧫●♠◕◍❅☢◭◮◔⎖✠⚙☮☒♾@B8&WM#⦷⦶*mwap॥✝0QOo◇⨞u+/\()?i!lI1[]|∸⌯~⊷-⊸_;:࿒\"^,'`.⋄· "
         
-    def __init__(self, log_dir='./logbook', window=1, divisor=12, span=60, format=None):
+    def __init__(self, log_dir='./logbook', window=1, divisor=12, span=60, format=None, **kwargs):
         '''
         :param window: the window length of moving average
         :param format: a list of which the element is format and mode, e.g. ['3f', 'raw']
         '''
         if isinstance(log_dir, str):
             self.log_dir = log_dir
+            if not os.path.exists(self.log_dir):
+                os.mkdir(self.log_dir)
         elif isinstance(log_dir, Iterable):
-            self.log_dir = '.'
+            self.log_dir = None
+            if format is not None:
+                assert isinstance(format, dict) and len(format) == 1, \
+                    'NEBULAE ERROR ៙ "format" must a dictionary with one key when DashBoard acts as an iterable wrapper.'
+            for k in kwargs.keys():
+                assert k in ('epoch', 'mpe', 'stage', 'interv', 'wipe'), 'NEBULAE ERROR ៙ DashBoard does not take "%s" as argument.'%k
+            self.kwargs = kwargs
             self.iterable = log_dir.__iter__()
-            self.length = len(log_dir)
+            if not hasattr(log_dir, '__len__'):
+                self.length = kwargs.get('mpe', -1)
+            else:
+                self.length = len(log_dir)
             self.cnt = 0
         else:
-            'NEBULAE ERROR ៙ log_dir must be either a path string or an iterator.'
+            raise TypeError('NEBULAE ERROR ៙ "log_dir" must be either a path string or an iterator.')
         self.rank = int(os.environ.get(ENV_RANK, -1))
-        if not os.path.exists(self.log_dir):
-            os.mkdir(self.log_dir)
         self.window = window
         self.divisor = divisor
         self.span = span
@@ -126,7 +136,7 @@ class DashBoard(object):
                     self.char_image += max(0, 128 - W) * ' ' + '\n'
                     self.image_row += 1
             return ''
-        elif mode == TAILOR:
+        elif mode == CUSTOM:
             string = form(value)
             return ' %s ➭ \033[1;36m%s\033[0m |' % (abbr, string)
         else:
@@ -136,18 +146,28 @@ class DashBoard(object):
         return self
 
     def __next__(self):
-        if self.cnt == self.length:
-            self.cnt = 0
-        else:
-            self({}, 0, self.cnt, self.length, 'ITER', plot=False)
+        try:
+            ret = self.iterable.__next__()
+            if self.format is not None:
+                entry = {list(self.format.keys())[0]: ret}
+            else:
+                entry = {}
+            self(entry, self.kwargs.get('epoch', 0), self.cnt, self.length, self.kwargs.get('stage', 'ITER'), \
+                 interv=self.kwargs.get('interv', 1), wipe=self.kwargs.get('wipe', False), plot=False)
             self.cnt += 1
-        return self.iterable.__next__()
+            return ret
+        except StopIteration:
+            if self.length < 0:
+                self.unk_miles -= 1
+                self({}, self.kwargs.get('epoch', 0), self.cnt-1, self.cnt, self.kwargs.get('stage', 'ITER'), \
+                     interv=self.kwargs.get('interv', 1), wipe=self.kwargs.get('wipe', False), plot=False)
+            raise StopIteration    
     
-    def __call__(self, entry, epoch, mile, mpe, stage='ITER', interval=1, duration=None, plot=True, wipe=False, flush=0,
+    def __call__(self, entry, epoch, mile, mpe, stage='ITER', interv=1, duration=None, plot=True, wipe=False, flush=0,
                 is_global=True, is_elastic=False, in_loop=(-1,), last_for=1):
         if self.rank>0:
             return
-        assert not (plot and wipe), 'NEBULAE ERROR ៙ plot and wipe are mutually exclusive.'
+        assert not (plot and wipe), 'NEBULAE ERROR ៙ "plot" and "wipe" are mutually exclusive.'
         epoch += 1
         mile += 1
         string_mile = ''
@@ -155,9 +175,9 @@ class DashBoard(object):
         flag_epoch_end = False
         len_loop = len(in_loop)
         assert in_loop[0]<0 or len_loop>1, 'NEBULAE ERROR ៙ the dashboard should loop through more than one curve.'
-        if mile % interval == 0:
+        if mile % interv == 0:
             flag_display = True
-        if mile % mpe == 0:
+        if mpe > 0 and mile % mpe == 0:
             flag_epoch_end = True
             if epoch > self.max_epoch:
                 self.max_epoch = epoch
@@ -167,16 +187,17 @@ class DashBoard(object):
             self.time = time.time()
         items = []
         for abbr, value in entry.items():
+            # get strings complied with formats
+            if flag_display or self.format[abbr][1] == INVIZ:
+                string_mile += self._formatAsStr(stage, abbr, value, epoch, mile, mpe)
+            if self.log_dir is None or self.format[abbr][1] in (IMAGE, INVIZ, CUSTOM):
+                if flag_epoch_end:
+                    _ = self._formatAsStr(stage, abbr, value, epoch, -1, mpe)
+                continue
             # read gauge every mile
             global_mile = ((epoch-1)*mpe+mile)
             name = stage + ":" + abbr
             items.append(name)
-            if flag_display or self.format[abbr][1] == INVIZ:
-                string_mile += self._formatAsStr(stage, abbr, value, epoch, mile, mpe)
-            if self.format[abbr][1] in (IMAGE, INVIZ, TAILOR):
-                if flag_epoch_end:
-                    _ = self._formatAsStr(stage, abbr, value, epoch, -1, mpe)
-                continue
             if name not in self.win_mile.keys():
                 self.win_mile[name] = np.zeros((self.window,))
                 self.gauge_mile[name] = []
@@ -196,12 +217,12 @@ class DashBoard(object):
             else:
                 gauge = np.array(self.win_mile[name]).mean()
             self.gauge_mile[name].append(gauge)
-            if len(self.trail_mile[stage]) < len(self.gauge_mile[name]): # assume all metric share the same trail
+            if len(self.trail_mile[stage]) < len(self.gauge_mile[name]): # assuming all metric share the same trail
                 self.trail_mile[stage].append(global_mile)
             if flag_epoch_end:
                 # read gauge every epoch
                 self.gauge_epoch[name][-1] /= mpe
-                if len(self.trail_epoch[stage]) < len(self.gauge_epoch[name]):  # assume all metric share the same trail
+                if len(self.trail_epoch[stage]) < len(self.gauge_epoch[name]):  # assuming all metric share the same trail
                     self.trail_epoch[stage].append(epoch)
                 indicator = self._formatAsStr(stage, abbr, self.gauge_epoch[name][-1], epoch, -1, mpe)
                 string_epoch += indicator
@@ -224,7 +245,7 @@ class DashBoard(object):
                 curve_exists = False
             if curve_exists:
                 if len_loop > 1:
-                    if mile % (interval*last_for) == 0:
+                    if mile % (interv*last_for) == 0:
                         self.ptr = (self.ptr + 1) % len_loop
                     metric_idx = in_loop[self.ptr]
                 else:
@@ -241,9 +262,17 @@ class DashBoard(object):
             print(w * ' ', end='\r')
 
             ordinal = self._getOridinal(epoch)
-            progress = int((mile - 1) / mpe * 20 + 0.4)
-            yellow_bar = progress * ' '
-            space_bar = (20 - progress) * ' '
+            if mpe > 0:
+                progress = int((mile - 1) / mpe * 20 + 0.4)
+                pre_bar = ''
+                yellow_bar = progress * ' '
+                space_bar = (20 - progress) * ' '
+            else:
+                progress = (self.cnt//interv % 40) - 20
+                progress = 20 + progress if progress<0 else 19 - progress
+                pre_bar = progress * ' '
+                yellow_bar = ' '
+                space_bar = (19 - progress) * ' '
             if duration is None:
                 if self.prev_time < 0:
                     duration = '--:--'
@@ -259,8 +288,8 @@ class DashBoard(object):
                 end_char = '\r'
             else:
                 end_char = '\n'
-            print('| %d%s Epoch ⚘ %d Miles ≺[\033[43m%s\033[0m%s]≻ ₪ %ss/mile | %s |%s     '
-                  % (epoch, ordinal, mile, yellow_bar, space_bar, duration, stage, string_mile), end=end_char)
+            print('| %d%s Epoch ⚘ %d Miles ≺[%s\033[43m%s\033[0m%s]≻ ₪ %ss/mile | %s |%s     '
+                  % (epoch, ordinal, mile, pre_bar, yellow_bar, space_bar, duration, stage, string_mile), end=end_char)
             if wipe:
                 stdout.flush()
             else:
@@ -285,9 +314,9 @@ class DashBoard(object):
             mileage = str(epoch * mpe)
             display = '| %d%s Epoch ⚘ %s Miles ₪ %.2fs/epoch | %s |%s' \
                     % (epoch, ordinal, mileage, (time.time() - self.time) * mpe / (mpe - self.unk_miles), stage, string_epoch)
-            print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
+            print('+' + (len(display) - 2 - cnt * 11) * '-' + '+' + 30 * ' ')
             print(display)
-            print('+' + (len(display) - 3 - cnt * 11) * '-' + '+' + 30 * ' ')
+            print('+' + (len(display) - 2 - cnt * 11) * '-' + '+' + 30 * ' ')
             self.char_image = ''
             self.image_row = 0
             self.time = time.time()
@@ -351,7 +380,7 @@ class DashBoard(object):
             boards = {}
             # group by metrics
             for k, v in self.format.items():
-                if not v[1] in ('inviz', 'tailor'):
+                if not v[1] in (INVIZ, IMAGE, CUSTOM):
                     boards[k] = []
             for k in self.gauge_mile.keys():
                 boards[k.split(':')[-1]].append(k)
@@ -414,9 +443,9 @@ if __name__ == "__main__":
         for epoch in range(5):
             for mile in range(10):
                 probe = {'Acc':rand.random(), 'Loss':rand.random()}
-                db(probe, mile, epoch, 10, 'TRAIN', interval=1, is_global=True)
+                db(probe, mile, epoch, 10, 'TRAIN', interv=1, is_global=True)
         
             for mile in range(10):
                 probe = {'Acc':rand.random()}
-                db(probe, mile, epoch, 10, 'DEV', interval=1, is_global=True)
+                db(probe, mile, epoch, 10, 'DEV', interv=1, is_global=True)
         db.log()
