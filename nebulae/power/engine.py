@@ -44,11 +44,11 @@ class Engine(object):
     if_conserve
     least_mem
     '''
-    def __init__(self, device=GPU, ngpu=1, least_mem=2048, avail_gpus=(), multi_piston=False, gearbox=FREE):
+    def __init__(self, device=GPU, ngpu=1, least_mem=1024, avail_gpus=(), multi_piston=False, gearbox=FREE):
         self.rank = int(os.environ.get(ENV_RANK, -1))
         self.device = device
         self.multi_piston = multi_piston
-        if gearbox in (DYNAMIC, STATIC) and ver2num(torch.__version__) < ver2num('2.0'):
+        if gearbox in (DYNAMIC, STATIC) and ver2num(torch.__version__) < ver2num('2.0.0'):
             print('NEBULAE WARNING ◘ The PyTorch version is lower than 2.0, hence the gearbox will be FREE as default.')
             gearbox = FREE
         self.gearbox = gearbox

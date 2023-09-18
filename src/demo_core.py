@@ -28,6 +28,7 @@ with different backend cores. Training and validation are included as well.
 '''
 
 import os
+import torch
 import nebulae as neb
 from nebulae import *
 
@@ -159,7 +160,7 @@ def launch(cfg):
             self.acc = nad.AccCls(multi_class=False, is_one_hot=False)
             self.optz = nad.Adam(self.net, LR, wd=WD, lr_decay=nad.StepLR(DSTEP, DRATE), warmup=WARM, )#mixp=True)
 
-        @kit.Timer
+        @kit.Timer(torch.cuda.synchronize)
         def run(self, x, z):
             self.net.off()
             with nad.Rudder() as rud:
@@ -180,7 +181,7 @@ def launch(cfg):
             self.acc = nad.AccCls(multi_class=False, is_one_hot=False)
             # self.retro = nad.Retroact()
 
-        @kit.Timer
+        @kit.Timer(torch.cuda.synchronize)
         def run(self, x, z):
             self.net.on()
             with nad.Nozzle() as noz:

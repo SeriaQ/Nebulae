@@ -592,7 +592,7 @@ class GPUtil():
         h, m, s = time.split(':')
         return 3600 * int(h) + 60 * int(m) + float(s)
 
-    def available(self, ngpu, least_mem):
+    def available(self, ngpu, least_mem=1024):
         with subps.Popen(['nvidia-smi', '--query-gpu=name,memory.total,memory.free', '--format=csv'],
                         stdout=subps.PIPE) as p:
             gpu_id = 0 # the next gpu we are about to check

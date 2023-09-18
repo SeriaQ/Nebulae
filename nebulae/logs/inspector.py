@@ -64,7 +64,7 @@ class Inspector(object):
 
         if isinstance(archit, (DP, DDP)):
             archit = archit.module
-        if ver2num(torch.__version__) >= ver2num('2.0') and isinstance(archit, torch._dynamo.OptimizedModule):
+        if ver2num(torch.__version__) >= ver2num('2.0.0') and isinstance(archit, torch._dynamo.OptimizedModule):
             self.archit = archit._orig_mod
         else:
             self.archit = archit
@@ -157,7 +157,7 @@ class Inspector(object):
         
         if isinstance(archit, (DP, DDP)):
             archit = archit.module
-        if ver2num(torch.__version__) >= ver2num('2.0') and isinstance(archit, torch._dynamo.OptimizedModule):
+        if ver2num(torch.__version__) >= ver2num('2.0.0') and isinstance(archit, torch._dynamo.OptimizedModule):
             archit = archit._orig_mod
 
         archit.eval()

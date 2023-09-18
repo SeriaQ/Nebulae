@@ -2038,7 +2038,7 @@ class SSIM(Craft):
 
 class WarmUpWrapper():
     def __init__(self, warmup, scheduler):
-        if PT_VER >= ver2num('2.0'):
+        if PT_VER >= ver2num('2.0.0'):
             scheduler_base = torch.optim.lr_scheduler.LRScheduler
         else:
             scheduler_base = torch.optim.lr_scheduler._LRScheduler
@@ -2148,7 +2148,7 @@ class OptzABC(Craft):
         elif lr_decay is not None:
             self.mode = 2
 
-        if PT_VER >= ver2num('2.0') and isinstance(hull, compiled_mod):
+        if PT_VER >= ver2num('2.0.0') and isinstance(hull, compiled_mod):
             hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
