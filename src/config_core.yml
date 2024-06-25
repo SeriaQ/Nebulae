@@ -1,7 +1,7 @@
 hyper:
-    img_size: 32
-    batch_size: 256
-    nepoch: 1
+    img_size: 128
+    batch_size: 32
+    nepoch: 3
     lr: 3.0e-3
     wd: 0
     decay_step: 800
@@ -11,7 +11,7 @@ aug:
     bright: [0.9, 1.1]
     rotate: 10
 env:
-    log_root: "/root/proj/logs"
+    log_root: "/root/proj/examplar/logbook"
     data_root: "/root/proj/data"
     ngpu: 2
     # training mode

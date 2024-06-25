@@ -22,9 +22,8 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ... import dock, Component
+from ... import dock
 from .architect import ResVQE, ResVQD, VecQuant
-
 
 
 class VQVAE(dock.Craft):

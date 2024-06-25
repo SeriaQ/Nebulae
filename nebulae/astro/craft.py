@@ -29,13 +29,10 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..power.engine import Engine
-from ..power import CPU, GPU
 from ..kit import ver2num
 from ..rule import ENV_RANK
 
 __all__ = ('Craft',
-           'Rudder', 'Prober', 'Nozzle',
            
            'FP16', 'INT16', 'INT8',
            'NEAREST', 'LINEAR', 'CUBIC', 'AREA',
@@ -100,36 +97,12 @@ INT8 = torch.int8
 PT_VER = ver2num(torch.__version__)
 
 
-class DP(nn.DataParallel):
-    def __init__(self, module):
-        super(DP, self).__init__(module)
-
-    def __getattr__(self, name: str):
-        if '_parameters' in self.__dict__:
-            _parameters = self.__dict__['_parameters']
-            if name in _parameters:
-                return _parameters[name]
-        if '_buffers' in self.__dict__:
-            _buffers = self.__dict__['_buffers']
-            if name in _buffers:
-                return _buffers[name]
-        if '_modules' in self.__dict__:
-            modules = self.__dict__['_modules']
-            if name in modules:
-                return modules[name]
-        if hasattr(self, 'module'):
-            if hasattr(self.module, name):
-                return getattr(self.module, name)
-        raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
-
-
 
 class Craft(nn.Module):
-    def __init__(self, scope):
+    def __init__(self, scope='CRAFT'):
         super(Craft, self).__init__()
         self.scope = scope
         self.__prec = None
-        self.__cmp = []
         self.__dict = {}
 
     def run(self, *args, **kwargs):
@@ -151,46 +124,38 @@ class Craft(nn.Module):
         assert prec in (FP16, ), 'NEBULAE ERROR ៙ %s is not a valid type of tensors.' % prec
         self.__prec = prec
 
-    def gear(self, gr):
-        if isinstance(gr, bool):
-            if gr:
-                self.train()
-            else:
-                self.eval()
-        elif isinstance(gr, Engine):
-            if gr.gearbox == DYNAMIC:
-                torch.set_float32_matmul_precision('high')
-                self = torch.compile(self, dynamic=True)
-            elif gr.gearbox == STATIC:
-                torch.set_float32_matmul_precision('high')
-                self = torch.compile(self)
+    # def gear(self, gr):
+    #     if isinstance(gr, bool):
+    #         if gr:
+    #             self.train()
+    #         else:
+    #             self.eval()
+    #     elif isinstance(gr, Engine):
+    #         if gr.gearbox == DYNAMIC:
+    #             torch.set_float32_matmul_precision('high')
+    #             self = torch.compile(self, dynamic=True)
+    #         elif gr.gearbox == STATIC:
+    #             torch.set_float32_matmul_precision('high')
+    #             self = torch.compile(self)
 
-            if gr.device == GPU:
-                if gr.rank < 0:
-                    if gr.multi_piston:
-                        self = DP(self) # [self] is not this object anymore, but we'll receive it outside
-                    self.cuda()
-                else:
-                    self.to(gr.chip[gr.rank])
-            elif gr.device == CPU:
-                self.cpu()
-        else:
-            raise Exception('NEBULAE ERROR ៙ %s is not a valid type of gear.' % type(gr))
-        return self
+    #         if gr.device == GPU:
+    #             if gr.rank < 0:
+    #                 if gr.multi_piston:
+    #                     self = DP(self) # [self] is not this object anymore, but we'll receive it outside
+    #                 self.cuda()
+    #             else:
+    #                 self.to(gr.chip[gr.rank])
+    #         elif gr.device == CPU:
+    #             self.cpu()
+    #     else:
+    #         raise Exception('NEBULAE ERROR ៙ %s is not a valid type of gear.' % type(gr))
+    #     return self
 
     def vars(self):
         return self.parameters()
 
     def weights(self):
         raise Exception('NEBULAE ERROR ៙ only a few crafts have weights.')
-
-    def formulate(self, *cmp):
-        for c in cmp:
-            self.__cmp.append(c)
-
-    @property
-    def cmp(self):
-        return self.__cmp
 
     def __getitem__(self, key):
         paths = key.split('/')
@@ -204,41 +169,6 @@ class Craft(nn.Module):
 
     def __setitem__(self, key, value):
         self.__dict[key] = value
-
-
-
-class Rudder(object):
-    def __init__(self):
-        self.grader = torch.enable_grad()
-
-    def __enter__(self):
-        self.grader.__enter__()
-        return True
-
-    def __exit__(self, *args):
-        self.grader.__exit__(None, None, None)
-
-class Prober(object):
-    def __init__(self):
-        self.grader = torch.enable_grad()
-
-    def __enter__(self):
-        self.grader.__enter__()
-        return False
-
-    def __exit__(self, *args):
-        self.grader.__exit__(None, None, None)
-
-class Nozzle(object):
-    def __init__(self):
-        self.grader = torch.no_grad()
-
-    def __enter__(self):
-        self.grader.__enter__()
-        return False
-
-    def __exit__(self, *args):
-        self.grader.__exit__(None, None, None)
 
 
 
@@ -646,6 +576,8 @@ class Identity(Craft):
 class EMA(Craft):
     def __init__(self, hull, decay_fn=lambda x: 0.9, on_device=False, scope='EMA'):
         super(EMA, self).__init__(scope)
+        if isinstance(hull, (torch.nn.DataParallel, torch.nn.parallel.distributed.DistributedDataParallel)):
+            hull = hull.module
         self.counter = 0
         self.decay_fn = decay_fn
         self.on_device = on_device
@@ -658,33 +590,40 @@ class EMA(Craft):
         hull_params = hull.state_dict()
         # note that params have not been to GPU even cuda is enabled
         for k, v in hull_params.items():
-            self.shadow[k] = v.clone().detach()           
-    
-    def gear(self, gr):
-        if isinstance(gr, torch.device):
-            self.hull.to(gr)
-            self.hull_dev = gr
+            self.shadow[k] = v.clone().detach()
+        # assume that all params in hull are on the same device
+        self.hull_dev = v.device
+        print('+---------------------------------------------+')
+        print('| The EMAed parameters are detected on %s |'%str(self.hull_dev))
+        print('+---------------------------------------------+')
+        if self.on_device:
+            self.shadow_dev = self.hull_dev
         else:
-            self.hull = self.hull.gear(gr)
-            if isinstance(gr, Engine):
-                self.hull_dev = gr.chip[0] # update only take places on main device
-                if self.on_device:
-                    self.shadow_dev = self.hull_dev
-                else:
-                    self.shadow_dev = torch.device('cpu')
+            self.shadow_dev = torch.device('cpu')
         for k in self.shadow.keys():
             self.shadow[k] = self.shadow[k].to(self.shadow_dev)
-        return self
+    
+    # def gear(self, gr):
+    #     if isinstance(gr, torch.device):
+    #         self.hull.to(gr)
+    #         self.hull_dev = gr
+    #     else:
+    #         self.hull = self.hull.gear(gr)
+    #         if isinstance(gr, Engine):
+    #             self.hull_dev = gr.chip[0] # update only take places on main device
+    #             if self.on_device:
+    #                 self.shadow_dev = self.hull_dev
+    #             else:
+    #                 self.shadow_dev = torch.device('cpu')
+    #     for k in self.shadow.keys():
+    #         self.shadow[k] = self.shadow[k].to(self.shadow_dev)
+    #     return self
 
     def vars(self):
-        return self.hull.vars()
+        return getattr(self.hull, 'vars', self.hull.parameters)()
 
     def weights(self):
-        return self.hull.weighs()
-
-    @property
-    def cmp(self):
-        return self.hull.__cmp
+        return self.hull.weights()
     
     def __getattr__(self, name: str): # only be invoked when getattr failed.
         # EMA is basically a wrapper of model i.e. self.hull,
@@ -742,7 +681,8 @@ class EMA(Craft):
         with torch.no_grad():
             hull_params = self.hull.state_dict()
             for key in hull_params.keys():
-                self.shadow[key].data.copy_(hull_params[key].to(self.shadow_dev).data * (1 - decay) + self.shadow[key].data * decay)
+                self.shadow[key].data.copy_(
+                    hull_params[key].to(self.shadow_dev).data * (1 - decay) + self.shadow[key].data * decay)
 
     def run(self, *args, **kwargs):
         return self.hull(*args, **kwargs)
@@ -2152,10 +2092,7 @@ class OptzABC(Craft):
             hull = hull._orig_mod
         # select parameters await updating
         if update_scope is None:
-            if hasattr(hull, 'vars'):
-                update_var = hull.vars()
-            else:
-                update_var = hull.parameters()
+            update_var = getattr(hull, 'vars', hull.parameters)()
         else:
             if isinstance(update_scope, str):
                 update_scope = [update_scope]
@@ -2163,9 +2100,9 @@ class OptzABC(Craft):
             for us in update_scope:
                 paths = us.split('/')
                 craft = hull
-                for p in paths:
+                for p in paths[1:]:
                     craft = getattr(craft, p)
-                update_var.append(craft.vars())
+                update_var.append(getattr(craft, 'vars', craft.parameters)())
         self.update_var = update_var
         self.grad_accum = grad_accum
         self.grad_limit = grad_limit

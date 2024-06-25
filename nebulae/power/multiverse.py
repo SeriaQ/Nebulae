@@ -35,76 +35,70 @@ else:
     is_new_version = False
 
 if is_new_version:
-    class DDP(torch.nn.parallel.DistributedDataParallel):
-        def __init__(self, module, device_ids, output_device, check_unused=False):
-            super(DDP, self).__init__(module, device_ids=device_ids, output_device=output_device,
-                                      find_unused_parameters=check_unused)
+    DDP = torch.nn.parallel.DistributedDataParallel
+    # class DDP(torch.nn.parallel.DistributedDataParallel):
+    #     def __init__(self, module, device_ids, output_device, check_unused=False):
+    #         super(DDP, self).__init__(module, device_ids=device_ids, output_device=output_device,
+    #                                   find_unused_parameters=check_unused)
 
-        def __getattr__(self, name: str):
-            if '_parameters' in self.__dict__:
-                _parameters = self.__dict__['_parameters']
-                if name in _parameters:
-                    return _parameters[name]
-            if '_buffers' in self.__dict__:
-                _buffers = self.__dict__['_buffers']
-                if name in _buffers:
-                    return _buffers[name]
-            if '_modules' in self.__dict__:
-                modules = self.__dict__['_modules']
-                if name in modules:
-                    return modules[name]
+    #     def __getattr__(self, name: str):
+    #         if '_parameters' in self.__dict__:
+    #             _parameters = self.__dict__['_parameters']
+    #             if name in _parameters:
+    #                 return _parameters[name]
+    #         if '_buffers' in self.__dict__:
+    #             _buffers = self.__dict__['_buffers']
+    #             if name in _buffers:
+    #                 return _buffers[name]
+    #         if '_modules' in self.__dict__:
+    #             modules = self.__dict__['_modules']
+    #             if name in modules:
+    #                 return modules[name]
             
-            raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
+    #         raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
 
-        def on(self):
-            self.module.on()
+    #     def on(self):
+    #         self.module.on()
 
-        def off(self):
-            self.module.off()
+    #     def off(self):
+    #         self.module.off()
 
-        def update(self):
-            self.module.update()
+    #     def update(self):
+    #         self.module.update()
 
-        def gear(self, gr):
-            self.module = self.module.gear(gr)
-            return self
+    #     def vars(self):
+    #         return self.module.vars()
 
-        def vars(self):
-            return self.module.vars()
-
-        def weights(self):
-            return self.module.weighs()
-
-        @property
-        def cmp(self):
-            return self.module.__cmp
+    #     def weights(self):
+    #         return self.module.weighs()
 else:
     try:
         from apex import parallel
     except ImportError:
         from torch.nn import parallel
         print('NEBULAE WARNING ◘ The PyTorch version is lower than 1.6 which may cause abnormal BNs in distributed manner.')
-    class DDP(parallel.DistributedDataParallel):
-        def __init__(self, module, delay_allreduce):
-            super(DDP, self).__init__(module, delay_allreduce=delay_allreduce)
+    DDP = parallel.DistributedDataParallel
+    # class DDP(parallel.DistributedDataParallel):
+    #     def __init__(self, module, delay_allreduce):
+    #         super(DDP, self).__init__(module, delay_allreduce=delay_allreduce)
 
-        def __getattr__(self, name: str):
-            if '_parameters' in self.__dict__:
-                _parameters = self.__dict__['_parameters']
-                if name in _parameters:
-                    return _parameters[name]
-            if '_buffers' in self.__dict__:
-                _buffers = self.__dict__['_buffers']
-                if name in _buffers:
-                    return _buffers[name]
-            if '_modules' in self.__dict__:
-                modules = self.__dict__['_modules']
-                if name in modules:
-                    return modules[name]
-            if hasattr(self, 'module'):
-                if hasattr(self.module, name):
-                    return getattr(self.module, name)
-            raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
+    #     def __getattr__(self, name: str):
+    #         if '_parameters' in self.__dict__:
+    #             _parameters = self.__dict__['_parameters']
+    #             if name in _parameters:
+    #                 return _parameters[name]
+    #         if '_buffers' in self.__dict__:
+    #             _buffers = self.__dict__['_buffers']
+    #             if name in _buffers:
+    #                 return _buffers[name]
+    #         if '_modules' in self.__dict__:
+    #             modules = self.__dict__['_modules']
+    #             if name in modules:
+    #                 return modules[name]
+    #         if hasattr(self, 'module'):
+    #             if hasattr(self.module, name):
+    #                 return getattr(self.module, name)
+    #         raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, name))
 
 
 
@@ -157,15 +151,31 @@ class Multiverse(object):
         torch.distributed.init_process_group(backend="nccl", rank=self.rank, world_size=self.nworld)
 
     def _sync(self, model):
-        scope = model.scope
-        if is_new_version:
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DDP(model, device_ids=[self.rank], output_device=self.rank)
+        from ..astro.craft import Craft, EMA
+        if isinstance(model, EMA):
+            _model = model.hull
         else:
-            model = parallel.convert_syncbn_model(model)
-            model = DDP(model, delay_allreduce=True)
+            _model = model
 
-        model.scope = scope
+        if isinstance(_model, Craft):
+            scope = _model.scope
+        else:
+            scope = ''
+
+        if is_new_version:
+            _model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(_model)
+            _model = DDP(_model, device_ids=[self.rank], output_device=self.rank)
+        else:
+            _model = parallel.convert_syncbn_model(_model)
+            _model = DDP(_model, delay_allreduce=True)
+
+        if scope:
+            _model.scope = scope
+
+        if isinstance(model, EMA):
+            model.hull = _model
+        else:
+            model = _model
         return model
 
     def sync(self, models):

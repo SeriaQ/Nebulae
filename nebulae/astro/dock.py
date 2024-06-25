@@ -22,7 +22,7 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from ..kit.utility import autopad, cap
+from ..kit.utility import autopad
 
 __all__ = ('coat', 'shell', 'autopad')
 
@@ -36,69 +36,3 @@ def coat(datum, as_const=True, sync=True):
 
 def shell(datum, as_np=True, sync=False):
     raise NotImplementedError('NEBULAE ERROR ៙ shell function becomes valid only after setting up an Engine.')
-
-
-class Component():
-    def __init__(self, name, comp=None, symbol=''):
-        self.name = name
-        if comp is None: # atomic component
-            self.comp = []
-        else:
-            assert len(comp)==2
-            left_sym = comp[0].symbol
-            right_sym = comp[1].symbol
-            if left_sym == right_sym:
-                if right_sym=='':
-                    self.comp = comp
-                else:
-                    self.comp = comp[0].comp + comp[1].comp
-            else:
-                if left_sym=='':
-                    if symbol==right_sym:
-                        self.comp = [comp[0]] + comp[1].comp
-                    else:
-                        self.comp = [comp[0], comp[1]]
-                elif right_sym=='':
-                    if symbol == left_sym:
-                        self.comp = comp[0].comp + [comp[1]]
-                    else:
-                        self.comp = [comp[0], comp[1]]
-                else:
-                    if symbol == left_sym:
-                        self.comp = comp[0].comp + [comp[1]]
-                    elif symbol == right_sym:
-                        self.comp = [comp[0]] + comp[1].comp
-                    else:
-                        self.comp = comp
-        self.symbol = symbol
-
-
-    def __rshift__(self, other): # cascade
-        return Component('', [self, other], '>')
-
-    def __add__(self, other): # add
-        return Component('', [self, other], '+')
-
-    def __sub__(self, other): # sub
-        return Component('', [self, other], '-')
-
-    def __mul__(self, other): # multiply
-        return Component('', [self, other], '*')
-
-    def __matmul__(self, other): # dot
-        return Component('', [self, other], '@')
-
-    def __and__(self, other): # concat
-        return Component('', [self, other], '&')
-
-    def __or__(self, other):
-        return Component('', [self, other], '|')
-
-    def __xor__(self, other): # with
-        return Component('', [self, other], '^')
-
-    def _cap(self, scope):
-        if '/' not in self.name:
-            self.name = cap(self.name, scope)
-        for c in self.comp:
-            c._cap(scope)

@@ -27,8 +27,6 @@ from .architect import MLPE, MLPD
 
 
 
-
-
 class VAE(dock.Craft):
     def __init__(self, in_shape, hidden_dim, latent_dim, scope='VAE'):
         super(VAE, self).__init__(scope)

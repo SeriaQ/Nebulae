@@ -99,7 +99,8 @@ class TimeMachine(object):
         if save_dir.endswith('.pth'):
             save_ckpt = save_dir
         else:
-            save_ckpt = os.path.join(save_dir, '%s-%d.pth'%(craft.scope, self.counter))
+            save_name = getattr(craft, 'scope', craft.__class__.__name__)
+            save_ckpt = os.path.join(save_dir, '%s-%d.pth'%(save_name, self.counter))
         torch.save(states, save_ckpt)
         self.counter += 1
         self.anchors.append(save_ckpt)

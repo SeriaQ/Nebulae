@@ -22,7 +22,7 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .engine import Engine, CPU, GPU, FREE, DYNAMIC, STATIC
+from .engine import Engine, CPU, GPU
 from .time_machine import TimeMachine
 from .multiverse import Multiverse, Universe
 

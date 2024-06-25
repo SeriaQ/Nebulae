@@ -33,7 +33,6 @@ from .fuel import Tank as nft
 from .fuel import Depot as nfd
 from .fuel import Generator as nfg
 from .astro import dock as nad
-from .astro import Component as nac
 from .astro import hangar as nah
 from .power import Engine as npe
 from .power import TimeMachine as npt
@@ -48,5 +47,5 @@ from .kit import destine as nkd
 
 name = 'nebulae'
 __all__ = ['fuel', 'astro', 'power', 'logs', 'kit',
-           'nfc', 'nft', 'nfd', 'nfg', 'nad', 'nac', 'nah', 'npe', 'npt', 'npm', 'npu', 'nld', 'nli', 'nkt', 'nkg', 'nkd',
+           'nfc', 'nft', 'nfd', 'nfg', 'nad', 'nah', 'npe', 'npt', 'npm', 'npu', 'nld', 'nli', 'nkt', 'nkg', 'nkd',
            'CORE', 'ENV_RANK', 'FIELD_SEP', 'CHAR_SEP', 'FRAME_KEY', 'VALID_DTYPE']

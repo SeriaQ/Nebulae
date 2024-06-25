@@ -32,6 +32,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data._utils.collate import default_collate
 from torch import cuda
 
+from ..power import GPU
 from ..rule import ENV_RANK, CHAR_SEP, FIELD_SEP
 from ..kit.utility import ver2num
 
@@ -49,7 +50,7 @@ def load_h5(data_path):
     hdf5 = h5py.File(data_path, 'r')
     return hdf5
 
-def load_csv(data_path, data_specf):
+def load_csv(data_path, data_spec):
     assert data_path.endswith('csv') or data_path.endswith('txt')
     tdata = {}
     with open(data_path, 'r') as csvf:
@@ -60,9 +61,9 @@ def load_csv(data_path, data_specf):
                 tdata = {k: [] for k in keys}
                 continue
             for i, val in enumerate(line):
-                if data_specf[keys[i]].startswith('int'):
+                if data_spec[keys[i]].startswith('int'):
                     tdata[keys[i]].append(int(val))
-                elif data_specf[keys[i]].startswith('float'):
+                elif data_spec[keys[i]].startswith('float'):
                     tdata[keys[i]].append(float(val))
                 else:
                     tdata[keys[i]].append(val)
@@ -91,15 +92,21 @@ class Tank(Dataset):
 
 
 class Depot(object):
-    def __init__(self, engine):
+    def __init__(self, engine=None):
         self.rank = int(os.environ.get(ENV_RANK, -1))
         self.nworld = int(os.environ.get('WORLD_SIZE', 1))
-        if hasattr(engine, 'chip'):
-            if engine.multi_piston:
+        if engine is not None and hasattr(engine, 'chip'):
+            if engine.device == GPU and self.rank < 0: # only Data Parallel
                 self._chip = torch.device('cuda')
             else:
                 self._chip = engine.chip[self.rank]
             self._coater = engine.coat
+        elif isinstance(engine, torch.device) and str(engine) != 'cpu':
+            self._chip = engine
+            def coat(t):
+                t.to(self._chip)
+                return t
+            self._coater = coat
         else:
             self._chip = None
         self._tanks = {}
@@ -107,7 +114,7 @@ class Depot(object):
         self._sampler = {} # only store tanks with shuffling
         self.MPE = {}
 
-    def mount(self, tank, batch_size, shuffle=True, in_same_size=True, nworker=-1, prefetch=0, transmit=False):
+    def mount(self, tank, batch_size, shuffle=True, in_same_size=True, nworker=-1, prefetch=0, transmit=False, collater=None):
         # >| get unique id
         tid = '0t' + hex(id(tank))[2:]
         # >| check argument validity
@@ -136,24 +143,28 @@ class Depot(object):
         else:
             self.MPE[tid] = ceil(len(tank) / (batch_size * self.nworld))
         nworker = cpu_count() if nworker <= 0 else nworker - 1
+        if hasattr(tank, 'collate'):
+            if collater is not None:
+                print('NEBULAE WARNING ◘ tank.collate has the privilege of overwriting input collater.')
+            collater = tank.collate
         if self.rank >= 0:
             from torch.utils.data import distributed as dist
             sampler = dist.DistributedSampler(tank)
             if prefetch < 0:
-                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=collater,
                                           drop_last=in_same_size, num_workers=nworker)
             else:
-                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, sampler=sampler, collate_fn=collater,
                                     drop_last=in_same_size, num_workers=nworker, prefetch_factor=prefetch)
             if shuffle:
                 sampler.set_epoch(0)
                 self._sampler[tid] = sampler
         else:
             if prefetch < 0:
-                loader = DataLoader(tank, batch_size, shuffle, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, shuffle, collate_fn=collater,
                                           drop_last=in_same_size, num_workers=nworker)
             else:
-                loader = DataLoader(tank, batch_size, shuffle, collate_fn=tank.collate,
+                loader = DataLoader(tank, batch_size, shuffle, collate_fn=collater,
                                     drop_last=in_same_size, num_workers=nworker, prefetch_factor=prefetch)
         # >| prefetch if necessary
         if self._transmit: # no matter how many batches to prefetch on GPU is all the same

@@ -22,5 +22,4 @@ Email: zzqsummerai@yeah.net
    
 '''
 # -*- coding:utf-8 -*-
-from .dock import Component
 from . import hangar
