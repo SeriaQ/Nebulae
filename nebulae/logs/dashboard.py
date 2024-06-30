@@ -55,7 +55,7 @@ class DashBoard(object):
         if isinstance(log_dir, str):
             self.log_dir = log_dir
             if not os.path.exists(self.log_dir):
-                os.mkdir(self.log_dir)
+                os.makedirs(self.log_dir)
         elif isinstance(log_dir, Iterable):
             self.log_dir = None
             if format is not None:

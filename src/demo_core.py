@@ -247,8 +247,5 @@ def launch(cfg):
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
     cfg = kit.parse_cfg('config_core.yml')
-    if cfg['env']['train_mode'] == 'dt':
-        mv = neb.power.Multiverse(launch, cfg['env']['ngpu'])
-        mv(cfg)
-    else:
-        launch(cfg)
+    mv = neb.power.Multiverse(launch, cfg['env']['ngpu'])
+    mv(cfg)
