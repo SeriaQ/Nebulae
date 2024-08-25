@@ -57,7 +57,8 @@ def launch(cfg):
     NGPU = cfg['env']['ngpu']
     TMODE = cfg['env']['train_mode']
     
-    uv = power.Universe()
+    tmode_dict = {'sg': power.SG, 'dp': power.DP, 'dt': power.DT}
+    uv = power.Universe(tmode_dict[TMODE])
     kit.destine(121)
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(value, epoch, mile, mpe, stage):
@@ -194,8 +195,6 @@ def launch(cfg):
     net = Net(10)
     # net.mixp()
     net.cuda()
-    if TMODE=='dp':
-        net = nn.DataParallel(net)
     net = uv.sync(net)
     ema = nad.EMA(net, on_device=True)
     train = Train(net, ema)
@@ -233,7 +232,7 @@ def launch(cfg):
             loss = nad.shell(loss)
             acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss': loss, }
-            db(probe, epoch, mile, mpe, 'DEV', interv=2, )#duration=duration)
+            db(probe, epoch, mile, mpe, 'DEV', interv=2, duration=duration)
         curr = db.read('Acc', 'DEV')
         if curr > best:
             tm.drop(net, train.optz)
@@ -247,5 +246,7 @@ def launch(cfg):
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
     cfg = kit.parse_cfg('config_core.yml')
-    mv = neb.power.Multiverse(launch, cfg['env']['ngpu'])
+    TMODE = cfg['env']['train_mode']
+    tmode_dict = {'sg': power.SG, 'dp': power.DP, 'dt': power.DT}
+    mv = neb.power.Multiverse(launch, cfg['env']['ngpu'], mode=tmode_dict[TMODE])
     mv(cfg)

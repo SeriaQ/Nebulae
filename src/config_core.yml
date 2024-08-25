@@ -1,7 +1,7 @@
 hyper:
     img_size: 128
     batch_size: 32
-    nepoch: 3
+    nepoch: 1
     lr: 3.0e-3
     wd: 0
     decay_step: 800

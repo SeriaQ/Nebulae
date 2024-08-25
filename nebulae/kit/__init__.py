@@ -23,7 +23,7 @@ Email: zzqsummerai@yeah.net
 # -*- coding:utf-8 -*-
 from .decorator import Timer, SPST
 from .utility import hotvec2mtx, mtx2hotvec, den2spa, spa2den, rand_trunc_norm, parse_cfg, record_cfg, \
-                    byte2arr, rgb2y, join_imgs, plot_in_one, ver2num, GPUtil, sprawl
+                    byte2arr, rgb2y, join_imgs, viz_flow, plot_in_one, ver2num, GPUtil, sprawl
 
 
 import torch
