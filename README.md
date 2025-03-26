@@ -25,9 +25,9 @@
 
 Several frequently used features are integrated with simple interfaces.
 
-🛠️ **Integrated Feats** - EMA module, multi-source datasets, training log plotting and timer etc.  
+🛠️ **Integrated Feats** - EMA module, multi-source datasets, training log plotting and timer etc.
 🎯 **Simplified API** - Unified API for distributed and single-GPU training.
-⚡️ **Efficiency** - Data augmentations are reimplemented using Numpy which is faster than PIL. 
+⚡️ **Efficiency** - Data augmentations are reimplemented using Numpy which is faster than PIL.
 🧩 **High Compatibility** - Users are able to build networks using Nebulae with PyTorch seamlessly.
 
 ------
@@ -89,4 +89,4 @@ The latest version supports PyTorch1.6 and above
 
 ## ❤️ Support
 
-If you find Nebulae helpful, consider giving it a ⭐ on GitHub!
+If you find Nebulae helpful, consider giving it a ⭐ on GitHub! ▶️ https://github.com/SeriaQ/Nebulae
