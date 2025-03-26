@@ -1,26 +1,4 @@
 #!/usr/bin/env python
-'''
-garage
-Created by Seria at 03/01/2019 8:32 PM
-Email: zzqsummerai@yeah.net
-
-                    _ooOoo_
-                  o888888888o
-                 o88`_ . _`88o
-                 (|  0   0  |)
-                 O \   。   / O
-              _____/`-----‘\_____
-            .’   \||  _ _  ||/   `.
-            |  _ |||   |   ||| _  |
-            |  |  \\       //  |  |
-            |  |    \-----/    |  |
-             \ .\ ___/- -\___ /. /
-         ,--- /   ___\<|>/___   \ ---,
-         | |:    \    \ /    /    :| |
-         `\--\_    -. ___ .-    _/--/‘
-   ===========  \__  NOBUG  __/  ===========
-   
-'''
 # -*- coding:utf-8 -*-
 from ... import dock
 from math import ceil
@@ -47,8 +25,6 @@ class Bottleneck(dock.Craft):
             self.ds_bn = dock.BN(self.body_chs, dim=2)
 
     def run(self, x):
-        self['identity'] = x
-
         y = self.conv_1(x)
         y = self.bn_1(y)
         y = self.relu(y)
@@ -65,7 +41,6 @@ class Bottleneck(dock.Craft):
 
         y += x
         y = self.relu(y)
-
         return y
 
 
@@ -79,11 +54,9 @@ class ResBlock(dock.Craft):
             setattr(self, 'layer_%d'%i, Bottleneck((H, W, nchs * width_multp), nchs, nchs * width_multp))
 
     def run(self, x):
-        self['input'] = x
         for i in range(self.nblock):
             l = getattr(self, 'layer_%d'%i)
             x = l(x)
-
         return x
 
 
@@ -119,7 +92,6 @@ class Resnet_V2(dock.Craft):
         self.gap = dock.AvgPool((-1, -1))
 
     def run(self, x):
-        self['input'] = x
         y = self.conv_0(x)
         y = self.bn_0(y)
         y = self.relu(y)
@@ -140,9 +112,7 @@ class Resnet_V2_50(dock.Craft):
         self.backbone = Resnet_V2(in_shape, [3, 4, 6, 3])
 
     def run(self, x):
-        self['in'] = x
         y = self.backbone(x)
-        self['out'] = y
         return y
 
 
@@ -152,7 +122,6 @@ class Resnet_V2_101(dock.Craft):
         self.backbone = Resnet_V2(in_shape, [3, 4, 23, 3])
 
     def run(self, x):
-        self['input'] = x
         y = self.backbone(x)
         return y
 
@@ -163,6 +132,5 @@ class Resnet_V2_152(dock.Craft):
         self.backbone = Resnet_V2(in_shape, [3, 8, 36, 3])
 
     def run(self, x):
-        self['input'] = x
         y = self.backbone(x)
         return y

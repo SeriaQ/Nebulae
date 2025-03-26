@@ -38,7 +38,7 @@ from .power import Engine as npe
 from .power import TimeMachine as npt
 from .power import Multiverse as npm
 from .power import Universe as npu
-from .logs import DashBoard as nld
+from .logs import Dash as nld
 from .logs import Inspector as nli
 from .kit import Timer as nkt
 from .kit import GPUtil as nkg

@@ -1,26 +1,4 @@
 #!/usr/bin/env python
-'''
-component_pt
-Created by Seria at 05/02/2019 1:41 PM
-Email: zzqsummerai@yeah.net
-
-                    _ooOoo_
-                  o888888888o
-                 o88`_ . _`88o
-                 (|  0   0  |)
-                 O \   。   / O
-              _____/`-----‘\_____
-            .’   \||  _ _  ||/   `.
-            |  _ |||   |   ||| _  |
-            |  |  \\       //  |  |
-            |  |    \-----/    |  |
-             \ .\ ___/- -\___ /. /
-         ,--- /   ___\<|>/___   \ ---,
-         | |:    \    \ /    /    :| |
-         `\--\_    -. ___ .-    _/--/‘
-   ===========  \__  NOBUG  __/  ===========
-
-'''
 # -*- coding:utf-8 -*-
 import os
 from math import ceil, sqrt

@@ -1,26 +1,4 @@
 #!/usr/bin/env python
-'''
-garage
-Created by Seria at 03/01/2019 8:32 PM
-Email: zzqsummerai@yeah.net
-
-                    _ooOoo_
-                  o888888888o
-                 o88`_ . _`88o
-                 (|  0   0  |)
-                 O \   。   / O
-              _____/`-----‘\_____
-            .’   \||  _ _  ||/   `.
-            |  _ |||   |   ||| _  |
-            |  |  \\       //  |  |
-            |  |    \-----/    |  |
-             \ .\ ___/- -\___ /. /
-         ,--- /   ___\<|>/___   \ ---,
-         | |:    \    \ /    /    :| |
-         `\--\_    -. ___ .-    _/--/‘
-   ===========  \__  NOBUG  __/  ===========
-   
-'''
 # -*- coding:utf-8 -*-
 from ... import dock
 
@@ -71,47 +49,46 @@ class VGG_16(dock.Craft):
 
 
     def run(self, x):
-        self['input'] = x
-        c1 = self.conv_1_1(self['input'])
+        c1 = self.conv_1_1(x)
         c1 = self.relu(c1)
         c1 = self.conv_1_2(c1)
         c1 = self.relu(c1)
-        self['conv_1'] = self.mpool_1(c1)
+        c1 = self.mpool_1(c1)
 
-        c2 = self.conv_2_1(self['conv_1'])
+        c2 = self.conv_2_1(c1)
         c2 = self.relu(c2)
         c2 = self.conv_2_2(c2)
         c2 = self.relu(c2)
-        self['conv_2'] = self.mpool_2(c2)
+        c2 = self.mpool_2(c2)
 
-        c3 = self.conv_3_1(self['conv_2'])
+        c3 = self.conv_3_1(c2)
         c3 = self.relu(c3)
         c3 = self.conv_3_2(c3)
         c3 = self.relu(c3)
         c3 = self.conv_3_3(c3)
         c3 = self.relu(c3)
-        self['conv_3'] = self.mpool_3(c3)
+        c3 = self.mpool_3(c3)
 
-        c4 = self.conv_4_1(self['conv_3'])
+        c4 = self.conv_4_1(c3)
         c4 = self.relu(c4)
         c4 = self.conv_4_2(c4)
         c4 = self.relu(c4)
         c4 = self.conv_4_3(c4)
         c4 = self.relu(c4)
-        self['conv_4'] = self.mpool_4(c4)
+        c4 = self.mpool_4(c4)
 
-        c5 = self.conv_5_1(self['conv_4'])
+        c5 = self.conv_5_1(c4)
         c5 = self.relu(c5)
         c5 = self.conv_5_2(c5)
         c5 = self.relu(c5)
         c5 = self.conv_5_3(c5)
         c5 = self.relu(c5)
-        self['conv_5'] = self.mpool_5(c5)
+        c5 = self.mpool_5(c5)
 
-        gc = self.glob_conv_1(self['conv_5'])
+        gc = self.glob_conv_1(c5)
         gc = self.glob_apool(gc)
         gc = self.dropout(gc)
         gc = self.glob_conv_2(gc)
-        self['gconv'] = self.dropout(gc)
+        y = self.dropout(gc)
 
-        return self['gconv']
+        return y

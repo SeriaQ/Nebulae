@@ -11,8 +11,8 @@ aug:
     bright: [0.9, 1.1]
     rotate: 10
 env:
-    log_root: "/root/proj/examplar/logbook"
-    data_root: "/root/proj/data"
+    log_root: "/root/proj/examples/logbook"
+    data_root: "/root/data"
     ngpu: 2
     # training mode
     # sg: single gpu

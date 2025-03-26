@@ -1,25 +1,4 @@
- #!/usr/bin/env python
-'''
-demo_dist
-Created by Seria at 05/03/2021 11:01 PM
-
-                    _ooOoo_
-                  o888888888o
-                 o88`_ . _`88o
-                 (|  0   0  |)
-                 O \   。   / O
-              _____/`-----‘\_____
-            .’   \||  _ _  ||/   `.
-            |  _ |||   |   ||| _  |
-            |  |  \\       //  |  |
-            |  |    \-----/    |  |
-             \ .\ ___/- -\___ /. /
-         ,--- /   ___\<|>/___   \ ---,
-         | |:    \    \ /    /    :| |
-         `\--\_    -. ___ .-    _/--/‘
-   ===========  \__  NOBUG  __/  ===========
-
-'''
+#!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
 '''
@@ -30,6 +9,7 @@ with different backend cores. Training and validation are included as well.
 import os
 import torch
 from torch import nn
+import tcurve as tc
 import nebulae as neb
 from nebulae import *
 
@@ -63,10 +43,10 @@ def launch(cfg):
     # --------------------------------- Aerolog ---------------------------------- #
     def saveimg(value, epoch, mile, mpe, stage):
         if mile%32==0:
-            cv2.imwrite('/root/proj/logs/ckpt/retro_%d_%d.png'%(epoch, mile), (value[:,:,0] * 255).astype(np.uint8))
-    db = logs.DashBoard(log_dir=os.path.join(LROOT, "ckpt"), window=15, divisor=15, span=70,
-                        format={"Acc": [".2f", logs.PERCENT], "Loss": [".3f", logs.RAW],
-                                "Shot": [lambda *x: x[2]==32, logs.IMAGE]}#'Img': [saveimg, logs.INVIZ]}
+            cv2.imwrite('./examples/logs/ckpt/retro_%d_%d.png'%(epoch, mile), (value[:,:,0] * 255).astype(np.uint8))
+    tcd = tc.Dash(log_dir=os.path.join(LROOT, "ckpt"), window=15, divisor=15, span=70,
+                        format={"Acc": [".2f", tc.PERCENT], "Loss": [".3f", tc.RAW],
+                                "Shot": [lambda *x: x[2]==32, tc.IMAGE]}#'Img': [saveimg, logs.INVIZ]}
                                )
 
     # --------------------------------- Cockpit ---------------------------------- #
@@ -221,7 +201,7 @@ def launch(cfg):
             img = np.concatenate((imgl, imgr), -1)
             probe = {'Acc': acc, 'Loss':loss, }
                     #  'Shot': cv2.cvtColor(img.transpose(1,2,0), cv2.COLOR_BGR2GRAY)}
-            db(probe, epoch, mile, mpe, 'TRAIN', interv=2, \
+            tcd(probe, epoch, mile, mpe, 'TRAIN', interv=2, \
                         is_global=True, is_elastic=True, in_loop=(0, 1), last_for=16)
 
         mpe = dp.MPE[tkd]
@@ -232,20 +212,20 @@ def launch(cfg):
             loss = nad.shell(loss)
             acc = nad.shell(acc)
             probe = {'Acc': acc, 'Loss': loss, }
-            db(probe, epoch, mile, mpe, 'DEV', interv=2, duration=duration)
-        curr = db.read('Acc', 'DEV')
+            tcd(probe, epoch, mile, mpe, 'DEV', interv=2, duration=duration)
+        curr = tcd.read('Acc', 'DEV')
         if curr > best:
             tm.drop(net, train.optz)
             best = curr
 
-        db.log(subdir='%03d'%epoch) #, history=os.path.join(LROOT, 'ckpt'))
+        tcd.log(subdir='%03d'%epoch) #, history=os.path.join(LROOT, 'ckpt'))
     gu.status()
 
 
 
 if __name__ == '__main__':
     # ----------------------------- Global Setting ------------------------------- #
-    cfg = kit.parse_cfg('config_core.yml')
+    cfg = kit.parse_cfg('./examples/config_core.yml')
     TMODE = cfg['env']['train_mode']
     tmode_dict = {'sg': power.SG, 'dp': power.DP, 'dt': power.DT}
     mv = neb.power.Multiverse(launch, cfg['env']['ngpu'], mode=tmode_dict[TMODE])

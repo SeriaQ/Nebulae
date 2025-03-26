@@ -1,26 +1,4 @@
 #!/usr/bin/env python
-'''
-layout_sheet
-Created by Seria at 02/12/2018 1:20 PM
-Email: zzqsummerai@yeah.net
-
-                    _ooOoo_
-                  o888888888o
-                 o88`_ . _`88o
-                 (|  0   0  |)
-                 O \   。   / O
-              _____/`-----‘\_____
-            .’   \||  _ _  ||/   `.
-            |  _ |||   |   ||| _  |
-            |  |  \\       //  |  |
-            |  |    \-----/    |  |
-             \ .\ ___/- -\___ /. /
-         ,--- /   ___\<|>/___   \ ---,
-         | |:    \    \ /    /    :| |
-         `\--\_    -. ___ .-    _/--/‘
-   ===========  \__  NOBUG  __/  ===========
-   
-'''
 # -*- coding:utf-8 -*-
 from ..kit import ver2num
 from ..astro.craft import EMA
@@ -43,12 +21,6 @@ if not enable_flops:
     except ImportError:
         enable_flops = False
 
-try:
-    from graphviz import Digraph
-    enable_painting = True
-except ImportError:
-    print('NEBULAE WARNING ◘ Network graph painting is disabled because of the lack of graphviz library.')
-    enable_painting = False
 
 
 class Inspector(object):
