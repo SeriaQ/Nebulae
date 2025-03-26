@@ -26,8 +26,11 @@
 Several frequently used features are integrated with simple interfaces.
 
 🛠️ **Integrated Feats** - EMA module, multi-source datasets, training log plotting and timer etc.
+
 🎯 **Simplified API** - Unified API for distributed and single-GPU training.
+
 ⚡️ **Efficiency** - Data augmentations are reimplemented using Numpy which is faster than PIL.
+
 🧩 **High Compatibility** - Users are able to build networks using Nebulae with PyTorch seamlessly.
 
 ------
