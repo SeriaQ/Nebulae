@@ -375,12 +375,6 @@ class GPUtil():
             for line in p.stdout.readlines():
                 self.gpus.append(line.decode('utf-8').strip())
 
-    def __del__(self):
-        if hasattr(self, 'file'):
-            self.file.close()
-            if os.path.exists('./temp_gpu_stat.csv'):
-                os.remove('./temp_gpu_stat.csv')
-    
     def _stamp2secs(self, t):
         date, time = t.split(' ')
         h, m, s = time.split(':')
@@ -412,7 +406,7 @@ class GPUtil():
         assert isinstance(sec, int), 'NEBULAE ERROR ៙ the monitoring interval must be an integer.'
         if sec<5:
             print('NEBULAE WARNING ◘ monitor GPU too often might cause abnormal statistics.')
-        self.file = open('./temp_gpu_stat.csv', 'w')
+        self.file = open('./_temp_gpu_stat.csv', 'w')
         # time limit is 12 hours
         self.process = subps.Popen(['timeout', '43200', 'nvidia-smi',
                                     '--query-gpu=timestamp,temperature.gpu,utilization.gpu,memory.used',
@@ -426,7 +420,7 @@ class GPUtil():
             subps.call(['pkill', 'nvidia-smi'])
             sleep(1)
         self.file.close()
-        with open('./temp_gpu_stat.csv', 'r') as f:
+        with open('./_temp_gpu_stat.csv', 'r') as f:
             gpu_id = 0
             n = len(self.gpus)
             t_ = ''
@@ -486,7 +480,7 @@ class GPUtil():
                 i, g, area_t[i]/t, area_u[i]/t, area_m[i]/t*100)
         stat += '\n+' + 67 * '-' + '+'
         self.stat = stat
-        os.remove('./temp_gpu_stat.csv')
+        os.remove('./_temp_gpu_stat.csv')
         print(self.stat)
 
 if __name__=='__main__':
